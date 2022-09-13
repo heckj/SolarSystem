@@ -1,5 +1,5 @@
-import XCTest
 @testable import SolarSystem
+import XCTest
 
 final class SolarSystemTests: XCTestCase {
     func testExample() throws {
