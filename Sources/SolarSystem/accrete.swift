@@ -53,9 +53,9 @@ struct AccretionDisk {
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
     // in C, so I've transferred that structure to reference types (final class), originally
     // defined in structs.h to the types included within Types.swift.
-    var dusts: Dust?
-    var planets: Planet?
-    var generations: Generation?
+    var dust_head: Dust?
+    var planet_head: Planet?
+    var generation_head: Generation?
     
     ///* Now for some variables global to the accretion process:        */
     //int             dust_left;
@@ -79,13 +79,13 @@ struct AccretionDisk {
         // original code sets up history _before_ adding explicit dust cloud and details,
         // so I think the first iteration of history is intended to be empty...
         var hist = Generation(dust: nil, planet: nil, next: nil)
-        hist.dust = dusts
-        hist.planet = planets
-        generations = hist
+        hist.dust = dust_head
+        hist.planet = planet_head
+        generation_head = hist
         
-        let dust_head = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
-        dusts = dust_head
-        planets = nil
+        let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
+        dust_head = dust
+        planet_head = nil
         cloud_eccentricity = 0.2
         dust_left = true
     }
@@ -151,32 +151,53 @@ struct AccretionDisk {
 //        return (a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity));
 //    }
 
-}
-
-
-
-
-
-
-int dust_available(long double inside_range, long double outside_range)
-{
-    dust_pointer current_dust_band;
-    int dust_here;
-    
-    current_dust_band = dust_head;
-    while ((current_dust_band != NULL)
-        && (current_dust_band->outer_edge < inside_range))
-        current_dust_band = current_dust_band->next_band;
-    if (current_dust_band == NULL)
-        dust_here = FALSE;
-    else dust_here = current_dust_band->dust_present;
-    while ((current_dust_band != NULL)
-        && (current_dust_band->inner_edge < outside_range)) {
-            dust_here = dust_here || current_dust_band->dust_present;
-            current_dust_band = current_dust_band->next_band;
+    func dust_available(inside_range: Double, outside_range: Double) -> Bool {
+        var current_dust_band = dust_head
+        var dust_here: Bool = false
+        
+        while current_dust_band != nil && current_dust_band!.outer_edge < inside_range {
+            current_dust_band = current_dust_band?.next_band
         }
-    return(dust_here);
+        
+        if let definitely_current_dust_band = current_dust_band {
+            dust_here = definitely_current_dust_band.dust_present
+        } else {
+            dust_here = false
+        }
+        
+        while current_dust_band != nil && current_dust_band!.inner_edge < outside_range {
+            dust_here = dust_here || current_dust_band!.dust_present
+            current_dust_band = current_dust_band?.next_band
+        }
+        
+        return dust_here
+    }
+//    int dust_available(long double inside_range, long double outside_range)
+//    {
+//        dust_pointer current_dust_band;
+//        int dust_here;
+//
+//        current_dust_band = dust_head;
+    
+//        while ((current_dust_band != NULL)
+//            && (current_dust_band->outer_edge < inside_range))
+//            current_dust_band = current_dust_band->next_band;
+    
+//        if (current_dust_band == NULL)
+//            dust_here = FALSE;
+//        else dust_here = current_dust_band->dust_present;
+    
+//        while ((current_dust_band != NULL)
+//            && (current_dust_band->inner_edge < outside_range)) {
+//                dust_here = dust_here || current_dust_band->dust_present;
+//                current_dust_band = current_dust_band->next_band;
+//            }
+//        return(dust_here);
+//    }
+
 }
+
+
 
 void update_dust_lanes(long double min, long double max, long double mass,
                        long double crit_mass, long double body_inner_bound,
