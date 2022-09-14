@@ -126,8 +126,8 @@ final class Planet {
     
     var planet_type: PlanetType
     var minor_moons: Int
-    var first_moon: Planet
-    var next_planet: Planet
+    var first_moon: Planet?
+    var next_planet: Planet?
     
     init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, moon_a: Double, moon_e: Double, core_radius: Double, radius: Double, orbit_zone: Int, density: Double, orb_period: Double, day: Double, resonant_period: Bool, esc_velocity: Double, surf_accel: Double, surf_grav: Double, rms_velocity: Double, molec_weight: Double, volatile_gas_inventory: Double, surf_pressure: Double, greenhouse_effect: Bool, boil_point: Double, albedo: Double, exospheric_temp: Double, estimated_temp: Double, estimated_terr_temp: Double, surf_temp: Double, greenhs_rise: Double, high_temp: Double, low_temp: Double, max_temp: Double, min_temp: Double, hydrosphere: Double, cloud_cover: Double, ice_cover: Double, sun: Sun, gases: Int, atmosphere: Gas, planet_type: PlanetType, minor_moons: Int, first_moon: Planet, next_planet: Planet) {
         self.planet_no = planet_no
@@ -238,9 +238,9 @@ final class Dust {
     var outer_edge: Double
     var dust_present: Bool
     var gas_present: Bool
-    var next_band: Dust
+    var next_band: Dust? = nil
     
-    init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band: Dust) {
+    init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band: Dust?) {
         self.inner_edge = inner_edge
         self.outer_edge = outer_edge
         self.dust_present = dust_present
@@ -310,11 +310,11 @@ final class Catalog {
 //    } catalog;
 
 final class Generation {
-    var dust: Dust
-    var planet: Planet
+    var dust: Dust?
+    var planet: Planet?
     var next: Generation?
     
-    init(dust: Dust, planet: Planet, next: Generation? = nil) {
+    init(dust: Dust?, planet: Planet?, next: Generation?) {
         self.dust = dust
         self.planet = planet
         self.next = next

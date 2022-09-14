@@ -2,6 +2,8 @@
 //  Accrete.swift
 //
 
+import Foundation
+
 /*------------------------------------------------------------------------*/
 /*                             BIBLIOGRAPHY                               */
 /*    Dole, Stephen H.  "Formation of Planetary Systems by Aggregation:   */
@@ -37,63 +39,124 @@
 //#include     "accrete.h"
 //#include     "stargen.h"
 
-
-/* Now for some variables global to the accretion process:        */
-int             dust_left;
-long double        r_inner;
-long double        r_outer;
-long double        reduced_mass;
-long double        dust_density;
-long double        cloud_eccentricity;
-dust_pointer    dust_head    = NULL;
-planet_pointer    planet_head    = NULL;
-gen_pointer        hist_head    = NULL;
-
-void set_initial_conditions(long double inner_limit_of_dust,
-                            long double outer_limit_of_dust)
-{
-    gen_pointer hist;
-    hist = (gen_pointer)malloc(sizeof(generation));
-    hist->dusts = dust_head;
-    hist->planets = planet_head;
-    hist->next = hist_head;
-    hist_head = hist;
+// Accrete was a variety of free functions that manipulated a set of global variables.
+// I'm encapsulating those into a struct, which seems a bit awkward, but better than slapping
+// around global variables and pointers to me.
+struct AccretionDisk {
+    var dust_left: Bool
+    var r_inner: Double
+    var r_outer: Double
+    var reduced_mass: Double
+    var dust_density: Double
+    var cloud_eccentricity: Double
     
-    dust_head = (dust *)malloc(sizeof(dust));
-    planet_head = NULL;
-    dust_head->next_band = NULL;
-    dust_head->outer_edge = outer_limit_of_dust;
-    dust_head->inner_edge = inner_limit_of_dust;
-    dust_head->dust_present = TRUE;
-    dust_head->gas_present = TRUE;
-    dust_left = TRUE;
-    cloud_eccentricity = 0.2;
+    // In the earlier versions of accrete, these were implemented as a linked-list of pointers
+    // in C, so I've transferred that structure to reference types (final class), originally
+    // defined in structs.h to the types included within Types.swift.
+    var dusts: Dust?
+    var planets: Planet?
+    var generations: Generation?
+    
+    ///* Now for some variables global to the accretion process:        */
+    //int             dust_left;
+    //long double        r_inner;
+    //long double        r_outer;
+    //long double        reduced_mass;
+    //long double        dust_density;
+    //long double        cloud_eccentricity;
+    //dust_pointer    dust_head    = NULL;
+    //planet_pointer    planet_head    = NULL;
+    //gen_pointer        hist_head    = NULL;
+    
+    
+    
+    // called from dist_planetary_masses, which seems to be the primary entry point to these functions.
+    // NOTE(heckj): This is completely setup related, so this might be WAY more sane in an
+    // intializer during refactoring. For the initial porting, I'm trying to maintain
+    // the same basic flow as the C code.
+    mutating func set_initial_conditions(inner_limit_of_dust: Double, outer_limit_of_dust: Double) {
+        
+        // original code sets up history _before_ adding explicit dust cloud and details,
+        // so I think the first iteration of history is intended to be empty...
+        var hist = Generation(dust: nil, planet: nil, next: nil)
+        hist.dust = dusts
+        hist.planet = planets
+        generations = hist
+        
+        let dust_head = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
+        dusts = dust_head
+        planets = nil
+        cloud_eccentricity = 0.2
+        dust_left = true
+    }
+    // called from dist_planetary_masses, which seems to be the primary entry point to these functions.
+    //void set_initial_conditions(long double inner_limit_of_dust,
+    //                            long double outer_limit_of_dust)
+    //{
+    //    gen_pointer hist;
+    //    hist = (gen_pointer)malloc(sizeof(generation));
+    //    hist->dusts = dust_head;
+    //    hist->planets = planet_head;
+    //    hist->next = hist_head;
+    //    hist_head = hist;
+    //
+    //    dust_head = (dust *)malloc(sizeof(dust));
+    //    planet_head = NULL;
+    //    dust_head->next_band = NULL;
+    //    dust_head->outer_edge = outer_limit_of_dust;
+    //    dust_head->inner_edge = inner_limit_of_dust;
+    //    dust_head->dust_present = TRUE;
+    //    dust_head->gas_present = TRUE;
+    //    dust_left = TRUE;
+    //    cloud_eccentricity = 0.2;
+    //}
+    
+    func stellar_dust_limit(stell_mass_ratio: Double) -> Double {
+        200.0 * pow(stell_mass_ratio, (1.0/3.0))
+    }
+    //    long double stellar_dust_limit(long double stell_mass_ratio)
+    //    {
+    //        return(200.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
+    //    }
+    
+    func nearest_planet(stell_mass_ratio: Double) -> Double {
+        0.3 * pow(stell_mass_ratio, (1.0/3.0))
+    }
+    //    long double nearest_planet(long double stell_mass_ratio)
+    //    {
+    //        return(0.3 * pow(stell_mass_ratio,(1.0 / 3.0)));
+    //    }
+    
+    func farthest_planet(stell_mass_ratio: Double) -> Double {
+        50.0 * pow(stell_mass_ratio, (1.0/3.0))
+    }
+    //    long double farthest_planet(long double stell_mass_ratio)
+    //    {
+    //        return(50.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
+    //    }
+    
+    func inner_effect_limit(a: Double, e: Double, mass: Double) -> Double {
+        a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity)
+    }
+    //    long double inner_effect_limit(long double a, long double e, long double mass)
+    //    {
+    //        return (a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity));
+    //    }
+    
+    func outer_effect_limit(a: Double, e: Double, mass: Double) -> Double {
+        a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity)
+    }
+//    long double outer_effect_limit(long double a, long double e, long double mass)
+//    {
+//        return (a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity));
+//    }
+
 }
 
-long double stellar_dust_limit(long double stell_mass_ratio)
-{
-    return(200.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
-}
 
-long double nearest_planet(long double stell_mass_ratio)
-{
-    return(0.3 * pow(stell_mass_ratio,(1.0 / 3.0)));
-}
 
-long double farthest_planet(long double stell_mass_ratio)
-{
-    return(50.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
-}
 
-long double inner_effect_limit(long double a, long double e, long double mass)
-{
-    return (a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity));
-}
 
-long double outer_effect_limit(long double a, long double e, long double mass)
-{
-    return (a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity));
-}
 
 int dust_available(long double inside_range, long double outside_range)
 {
