@@ -1,44 +1,41 @@
 //
 //  Accrete.swift
-//  
+//
 
-import Foundation
+/*------------------------------------------------------------------------*/
+/*                             BIBLIOGRAPHY                               */
+/*    Dole, Stephen H.  "Formation of Planetary Systems by Aggregation:   */
+/*        a Computer Simulation"    October 1969,  Rand Corporation Paper */
+/*        P-4226.                                                         */
+/*------------------------------------------------------------------------*/
 
+// Original C functions in header:
+//
+//void set_initial_conditions(long double, long double );
+//long double stellar_dust_limit(long double);
+//long double nearest_planet(long double);
+//long double farthest_planet(long double);
+//long double inner_effect_limit(long double, long double, long double );
+//long double outer_effect_limit(long double, long double, long double );
+//int dust_available(long double, long double );
+//void update_dust_lanes(long double, long double, long double, long double, long double, long double );
+//long double collect_dust(long double, long double *, long double *, long double, long double, long double, dust_pointer);
+//long double critical_limit(long double, long double, long double );
+//void accrete_dust(long double *, long double *, long double *, long double, long double, long double, long double, long double );
+//void coalesce_planetesimals(long double, long double, long double, long double, long double, long double, long double, long double, long double, int );
+//planet_pointer dist_planetary_masses(long double, long double, long double, long double, long double, long double, planet_pointer, int);
+//void free_dust (dust_pointer);
+//void free_planet (planet_pointer);
+//void free_atmosphere(planet_pointer);
+//void free_generations();
 
-// long double ==> Float80
-
-void set_initial_conditions(long double, long double );
-long double stellar_dust_limit(long double);
-long double nearest_planet(long double);
-long double farthest_planet(long double);
-long double inner_effect_limit(long double, long double, long double );
-long double outer_effect_limit(long double, long double, long double );
-int dust_available(long double, long double );
-void update_dust_lanes(long double, long double, long double, long double, long double, long double );
-long double collect_dust(long double, long double *, long double *, long double, long double, long double, dust_pointer);
-long double critical_limit(long double, long double, long double );
-void accrete_dust(long double *, long double *, long double *, long double, long double, long double, long double, long double );
-void coalesce_planetesimals(long double, long double, long double, long double, long double, long double, long double, long double, long double, int );
-planet_pointer dist_planetary_masses(long double, long double, long double, long double, long double, long double, planet_pointer, int);
-void free_dust (dust_pointer);
-void free_planet (planet_pointer);
-void free_atmosphere(planet_pointer);
-void free_generations();
-
-/*----------------------------------------------------------------------*/
-/*                             BIBLIOGRAPHY                                */
-/*    Dole, Stephen H.  "Formation of Planetary Systems by Aggregation:    */
-/*        a Computer Simulation"    October 1969,  Rand Corporation Paper    */
-/*        P-4226.                                                            */
-/*----------------------------------------------------------------------*/
-
-#include    <stdio.h>
-#include    <stdlib.h>
-#include    <math.h>
-#include    "const.h"
-#include    "structs.h"
-#include     "accrete.h"
-#include     "stargen.h"
+//#include    <stdio.h>
+//#include    <stdlib.h>
+//#include    <math.h>
+//#include    "const.h"
+//#include    "structs.h"
+//#include     "accrete.h"
+//#include     "stargen.h"
 
 
 /* Now for some variables global to the accretion process:        */
@@ -608,7 +605,7 @@ void coalesce_planetesimals(long double a, long double e, long double mass, long
     }
 }
 
-
+// primary entry point?
 planet_pointer dist_planetary_masses(long double stell_mass_ratio,
                                      long double stell_luminosity_ratio,
                                      long double inner_dust,
