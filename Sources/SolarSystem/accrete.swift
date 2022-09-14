@@ -1,11 +1,11 @@
 //
-//  File.swift
+//  Accrete.swift
 //  
-//
-//  Created by Joseph Heck on 9/13/22.
-//
 
 import Foundation
+
+
+// long double ==> Float80
 
 void set_initial_conditions(long double, long double );
 long double stellar_dust_limit(long double);
@@ -39,9 +39,7 @@ void free_generations();
 #include    "structs.h"
 #include     "accrete.h"
 #include     "stargen.h"
-#include     "utils.h"
 
-#include    "Dumas.h"
 
 /* Now for some variables global to the accretion process:        */
 int             dust_left;

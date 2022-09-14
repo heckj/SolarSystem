@@ -7,7 +7,7 @@ Procedural generation of solar systems, modeled on physical processes although n
 This is a port of extensive work by multiple other authors, used under license.
 The history of this code has had a variety of names, including StarGen, StarForm, and Accrete, with an extensive and varied history.
 The original program was written in Fortran in 1970 at Rand, following Stephen H. Dole published "Formation of Planetary Systems by Aggregation: A Computer Simulation".
-In 1985, Martyn Fogg wrote a version of it and published his results. 
+In 1985, Martyn Fogg wrote a version of it and published his results.
 Matt Burdick followed on to create a version first in Pascal, and then in C, called "starform" that showed up on the net in about 1988.
 Several versions of starform have since been developed and distributed by Ian Burrell, Carl Burke and Chris Croughton AKA Keris.
 The code that this ports from was written by Jim Burrows, with the most recent update being somewhere around 2008.

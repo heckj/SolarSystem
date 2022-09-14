@@ -1,9 +1,4 @@
-//
 //  Constants.swift
-//  
-//
-//  Created by Joseph Heck on 9/13/22.
-//
 
 import Foundation
 
@@ -49,10 +44,10 @@ let MAX_HABITABLE_PRESSURE = (118 * PSI_TO_MILLIBARS)    /* Dole, p. 16        *
 // The next gases are listed as poisonous in parts per million by volume at 1 atm:
 let PPM_PRSSURE = (EARTH_SURF_PRES_IN_MILLIBARS / 1000000.0)
 let MAX_F_IPP    = (0.1 * PPM_PRSSURE)            /* Dole, p. 18                */
-let MAX_CL_IPP    = (1.0 * PPM_PRSSURE)            /* Dole, p. 18                */
+let MAX_CL_IPP     = (1.0 * PPM_PRSSURE)            /* Dole, p. 18                */
 let MAX_NH3_IPP    = (100.0 * PPM_PRSSURE)        /* Dole, p. 18                */
 let MAX_O3_IPP    = (0.1 * PPM_PRSSURE)            /* Dole, p. 18                */
-let MAX_CH4_IPP    = (50000. * PPM_PRSSURE)        /* Dole, p. 18                */
+let MAX_CH4_IPP    = (50000.0 * PPM_PRSSURE)        /* Dole, p. 18                */
 
 
 
@@ -158,11 +153,3 @@ let JIMS_FUDGE                = 1.004
 /*    covered with clouds in function cloud_fraction in file enviro.c.         */
 let Q1_36                    = 1.258E19        /* grams    */
 let Q2_36                    = 0.0698        /* 1/Kelvin */
-
-///* macros: */
-//let pow2(a) ((a) * (a))
-//let pow3(a) ((a) * (a) * (a))
-//let pow4(a) ((a) * (a) * (a) * (a))
-//let pow1_4(a)        sqrt(sqrt(a))
-//let pow1_3(a)        pow(a,(1.0/3.0))
-//

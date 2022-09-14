@@ -15,7 +15,7 @@ My changes are:
 
   Make it more modular, so that modules are not using data from modules that
   call them (and hopefully not calling functions 'upward' either).
-  
+
   Put the 'main' function as the only thing in starform.c, so that (hopefully)
   all the other modules can be called by other programs.
 
@@ -46,9 +46,9 @@ references, I decided to implement it in Turbo Pascal on my PC.
 
 Later, I translated it to C for portability, and the result is what you see
 in front of you.  Because of my need to run this on an IBM-PC, there are two
-makefiles included with the program: 'Makefile' (for unix systems), and 
-'starform.mak' for MS-DOS systems.  To create the executable on a unix 
-system, type in 'make' alone; type 'make starform.mak' if you are on 
+makefiles included with the program: 'Makefile' (for unix systems), and
+'starform.mak' for MS-DOS systems.  To create the executable on a unix
+system, type in 'make' alone; type 'make starform.mak' if you are on
 an MS-DOS machine and using Microsoft C.
 
 Thanks go to Sean Malloy (malloy@nprdc.arpa) for his help with the random
@@ -59,8 +59,8 @@ Enjoy, and if you find any glaring inconsistancies or interesting pieces to
 add to the simulation, let me know and I'll include it in any other
 distributions I send out.
 
-Now for some references.  These are not the only good references on this 
-subject; only the most interesting of many that were listed in Fogg's 
+Now for some references.  These are not the only good references on this
+subject; only the most interesting of many that were listed in Fogg's
 article in vol 38 of JBIS:
 
 For a good description of the entire program:
@@ -78,8 +78,9 @@ For the determination of the radius of a terrestrial planet:
     Vol 96, pp. 833 - 843, 1936
 
 For the planetary mass accretion algorithm:
-    "Formation of Planetary Systems by Aggregation: A Computer Simulation"
+    "[Formation of Planetary Systems by Aggregation: A Computer Simulation](ref/Formation of Planetary Systems By Aggregation.pdf)"
     S. H. Dole, RAND paper no. P-4226, 1969
+    sourced from https://www.rand.org/pubs/papers/P4226.html
 
 For the day length calculation:
     "Q in the Solar System"
@@ -104,7 +105,7 @@ Acknowledgements:
 - Andrew Folkins, the author of 'accretion' (public domain) for the Amiga; I used chunks of his code when creating my displays.
 - Ed Taychert of Irony Games, for the algorithm he uses to classify terrestrial planets in his tabular CGI implementation of 'starform'.
 - Paul Schlyter, who provided information about computing planetary positions.
-- Planetary images courtesy Jet Propulsion Laboratory. Copyright (c) California Institute of Technology, Pasadena, CA. All rights reserved. 
+- Planetary images courtesy Jet Propulsion Laboratory. Copyright (c) California Institute of Technology, Pasadena, CA. All rights reserved.
 
 Bibliography:
 
@@ -125,18 +126,18 @@ These sources are the ones quoted by Burdick in the code. A good web search (or 
 
 History
 
-Long ago, before I was born, there was published an article by Dole about simulating the creation of planetary systems by accretion. This simple model was later analyzed in another paper by Carl Sagan. A later article published Fortran code for implementing the original algorithm and for simulating the creation of a planetary system. 
+Long ago, before I was born, there was published an article by Dole about simulating the creation of planetary systems by accretion. This simple model was later analyzed in another paper by Carl Sagan. A later article published Fortran code for implementing the original algorithm and for simulating the creation of a planetary system.
 
-As far as I know, the first widespread implementation was done by Matt Burdick. He wrote a Turbo Pascal version, a C version, and put together a package called starform. All of these implementations include environmental code to create and calculate temperature, atmosphere, and other environmental parameters beyond those of the Dole accretion model. 
+As far as I know, the first widespread implementation was done by Matt Burdick. He wrote a Turbo Pascal version, a C version, and put together a package called starform. All of these implementations include environmental code to create and calculate temperature, atmosphere, and other environmental parameters beyond those of the Dole accretion model.
 
-The accrete program got a wide distribution from the USML mailing list in 1988. That mailing list's lofty goal was to explore the simulation of the universe, concentrating on the creation of fictional planetary systems, random terrain generation, and modeling human societies. It eventually died out due to lack of interest and a broadening of topic. 
+The accrete program got a wide distribution from the USML mailing list in 1988. That mailing list's lofty goal was to explore the simulation of the universe, concentrating on the creation of fictional planetary systems, random terrain generation, and modeling human societies. It eventually died out due to lack of interest and a broadening of topic.
 
-Although this model is good enough for creating fictional star systems, the current theory for the creation of the solar system has moved on. Current scientific models are much more complicated and require significant computation time. The discovery of extrasolar planets has raised significant questions about the formation of planets. 
+Although this model is good enough for creating fictional star systems, the current theory for the creation of the solar system has moved on. Current scientific models are much more complicated and require significant computation time. The discovery of extrasolar planets has raised significant questions about the formation of planets.
 
 References
 
-*    Dole, S. "Computer Simulation of the Formation of Planetary Systems". Icarus, vol 13, pp 494-508, 1970. 
-*    Isaacman, R. & Sagan, C. "Computer Simulation of Planetary Accretion Dynamics: Sensitivity to Initial Conditions". Icarus, vol 31, p 510, 1977. 
-*    Fogg, Martyn J. "Extra-Solar Planetary Systems: A Microcomputer Simulation". Journal of the British Interplanetary Society, vol 38, p 501-514, 1985. 
+*    Dole, S. "Computer Simulation of the Formation of Planetary Systems". Icarus, vol 13, pp 494-508, 1970.
+*    Isaacman, R. & Sagan, C. "Computer Simulation of Planetary Accretion Dynamics: Sensitivity to Initial Conditions". Icarus, vol 31, p 510, 1977.
+*    Fogg, Martyn J. "Extra-Solar Planetary Systems: A Microcomputer Simulation". Journal of the British Interplanetary Society, vol 38, p 501-514, 1985.
 
 Ian Burrell / iburrell@znark.com
