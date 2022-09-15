@@ -146,11 +146,11 @@ struct AccretionDisk {
     func outer_effect_limit(a: Double, e: Double, mass: Double) -> Double {
         a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity)
     }
-//    long double outer_effect_limit(long double a, long double e, long double mass)
-//    {
-//        return (a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity));
-//    }
-
+    //    long double outer_effect_limit(long double a, long double e, long double mass)
+    //    {
+    //        return (a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity));
+    //    }
+    
     func dust_available(inside_range: Double, outside_range: Double) -> Bool {
         // This iterates through the linked-list of all the "bands of dust"
         // (represented by Dust.next -> Dust.next -> nil) to search for the areas
@@ -184,163 +184,217 @@ struct AccretionDisk {
         
         return dust_here
     }
-//    int dust_available(long double inside_range, long double outside_range)
-//    {
-//        dust_pointer current_dust_band;
-//        int dust_here;
-//
-//        current_dust_band = dust_head;
+    //    int dust_available(long double inside_range, long double outside_range)
+    //    {
+    //        dust_pointer current_dust_band;
+    //        int dust_here;
+    //
+    //        current_dust_band = dust_head;
     
-//        while ((current_dust_band != NULL)
-//            && (current_dust_band->outer_edge < inside_range))
-//            current_dust_band = current_dust_band->next_band;
+    //        while ((current_dust_band != NULL)
+    //            && (current_dust_band->outer_edge < inside_range))
+    //            current_dust_band = current_dust_band->next_band;
     
-//        if (current_dust_band == NULL)
-//            dust_here = FALSE;
-//        else dust_here = current_dust_band->dust_present;
+    //        if (current_dust_band == NULL)
+    //            dust_here = FALSE;
+    //        else dust_here = current_dust_band->dust_present;
     
-//        while ((current_dust_band != NULL)
-//            && (current_dust_band->inner_edge < outside_range)) {
-//                dust_here = dust_here || current_dust_band->dust_present;
-//                current_dust_band = current_dust_band->next_band;
-//            }
-//        return(dust_here);
-//    }
-
-
-// called from `accrete_dust`
-mutating func update_dust_lanes(min: Double, max: Double, mass: Double, crit_mass: Double, body_inner_bound: Double, body_outer_bound: Double) {
+    //        while ((current_dust_band != NULL)
+    //            && (current_dust_band->inner_edge < outside_range)) {
+    //                dust_here = dust_here || current_dust_band->dust_present;
+    //                current_dust_band = current_dust_band->next_band;
+    //            }
+    //        return(dust_here);
+    //    }
     
-    var gas: Bool = (mass <= crit_mass)
-    var node1: Dust? = nil
-    var node2: Dust? = nil
-    var node3: Dust? = nil
-    dust_left = false
-    node1 = dust_head
-    while (node1 != nil) {
-        if let definitely_node1 = node1 {
-            if definitely_node1.inner_edge < min && definitely_node1.outer_edge > max {
-                
-                node2 = Dust(inner_edge: min, outer_edge: max, dust_present: false, gas_present: definitely_node1.gas_present ? gas : false, next_band: nil)
-                node3 = Dust(inner_edge: max, outer_edge: definitely_node1.outer_edge, dust_present: definitely_node1.dust_present, gas_present: definitely_node1.gas_present, next_band: definitely_node1.next_band)
-                definitely_node1.next_band = node2
-                node2?.next_band = node3
-                node1?.outer_edge = min
-                node1 = node3?.next_band
+    
+    // called from `accrete_dust`
+    mutating func update_dust_lanes(min: Double, max: Double, mass: Double, crit_mass: Double, body_inner_bound: Double, body_outer_bound: Double) {
+        
+        var gas: Bool = (mass <= crit_mass)
+        var node1: Dust? = nil
+        var node2: Dust? = nil
+        var node3: Dust? = nil
+        dust_left = false
+        node1 = dust_head
+        while (node1 != nil) {
+            if let definitely_node1 = node1 {
+                if definitely_node1.inner_edge < min && definitely_node1.outer_edge > max {
+                    //  node1.inner ------------------------- node1.outer
+                    //                     min ---- max
+                    // make a new dust lane and insert it into the linked list, marking
+                    // that dust lane as consumed, squeezing down the first lane to 'min'
+                    // and creating a new dust lane to cover 'max' to the outer edge
+                    node2 = Dust(inner_edge: min, outer_edge: max, dust_present: false, gas_present: definitely_node1.gas_present ? gas : false, next_band: nil)
+                    node3 = Dust(inner_edge: max, outer_edge: definitely_node1.outer_edge, dust_present: definitely_node1.dust_present, gas_present: definitely_node1.gas_present, next_band: definitely_node1.next_band)
+                    definitely_node1.next_band = node2
+                    node2?.next_band = node3
+                    node1?.outer_edge = min
+                    node1 = node3?.next_band
+                } else if definitely_node1.inner_edge < max && definitely_node1.outer_edge > max {
+                    //        node1.inner ------ node1.outer
+                    //   min -------------- max
+                    
+                    node2 = Dust(inner_edge: max, outer_edge: definitely_node1.outer_edge, dust_present: definitely_node1.dust_present, gas_present: definitely_node1.gas_present, next_band: definitely_node1.next_band)
+                    definitely_node1.next_band = node2
+                    definitely_node1.outer_edge = max
+                    definitely_node1.gas_present = definitely_node1.gas_present ? gas : false
+                    definitely_node1.dust_present = false
+                    node1 = node2?.next_band
+                } else if definitely_node1.inner_edge < min && definitely_node1.outer_edge > min {
+                    //        node1.inner -------- node1.outer
+                    //                       min -------------- max
+                    node2 = Dust(inner_edge: min, outer_edge: definitely_node1.outer_edge, dust_present: false, gas_present: definitely_node1.gas_present ? gas : false, next_band: definitely_node1.next_band)
+                    definitely_node1.next_band = node2
+                    definitely_node1.outer_edge = min
+                    node1 = node2?.next_band
+                } else if definitely_node1.inner_edge >= min && definitely_node1.outer_edge <= max {
+                    //       node1.inner --- node1.outer
+                    //  min ------------------------------ max
+                    definitely_node1.dust_present = false
+                    definitely_node1.gas_present = definitely_node1.gas_present ? gas : false
+                    node1 = node1?.next_band
+                } else if definitely_node1.outer_edge < min || definitely_node1.inner_edge > max {
+                    //       node1.inner --- node1.outer
+                    //                                     min ----- max
+                    // OR
+                    //                       node1.inner --- node1.outer
+                    //       min ----- max
+                    node1 = node1?.next_band
+                }
             }
+        }
+        // walk through the tree after the updates, and collapse bands that are equivalent
+        // together
+        node1 = dust_head
+        while (node1 != nil) {
+            if let definitely_node1 = node1 {
+                if definitely_node1.dust_present && definitely_node1.outer_edge >= body_inner_bound && definitely_node1.inner_edge <= body_outer_bound {
+                    dust_left = true
+                }
+                node2 = definitely_node1.next_band
+                if let definitely_node2 = node2 {
+                    if definitely_node1.dust_present == definitely_node2.dust_present && definitely_node1.gas_present == definitely_node2.gas_present {
+                        definitely_node1.outer_edge = definitely_node2.outer_edge
+                        definitely_node1.next_band = definitely_node2.next_band
+                        // free(node2)
+                    }
+                }
+            }
+            node1 = node1?.next_band
         }
     }
     
-// called from `accrete_dust`
-//void update_dust_lanes(long double min, long double max, long double mass,
-//                       long double crit_mass, long double body_inner_bound,
-//                       long double body_outer_bound)
-//{
-//    int             gas;
-//    dust_pointer    node1;
-//    dust_pointer    node2;
-//    dust_pointer    node3;
-//
-//    dust_left = FALSE;
-//    if ((mass > crit_mass))
-//        gas = FALSE;
-//    else
-//        gas = TRUE;
-//    node1 = dust_head;
-//    while ((node1 != NULL))
-//    {
-//        if (((node1->inner_edge < min) && (node1->outer_edge > max)))
-//        {
-//            node2 = (dust *)malloc(sizeof(dust));
-//            node2->inner_edge = min;
-//            node2->outer_edge = max;
-//            if ((node1->gas_present == TRUE))
-//                node2->gas_present = gas;
-//            else
-//                node2->gas_present = FALSE;
-//            node2->dust_present = FALSE;
     
-//            node3 = (dust *)malloc(sizeof(dust));
-//            node3->inner_edge = max;
-//            node3->outer_edge = node1->outer_edge;
-//            node3->gas_present = node1->gas_present;
-//            node3->dust_present = node1->dust_present;
-//            node3->next_band = node1->next_band;
+    // called from `accrete_dust`
+    //void update_dust_lanes(long double min, long double max, long double mass,
+    //                       long double crit_mass, long double body_inner_bound,
+    //                       long double body_outer_bound)
+    //{
+    //    int             gas;
+    //    dust_pointer    node1;
+    //    dust_pointer    node2;
+    //    dust_pointer    node3;
+    //
+    //    dust_left = FALSE;
+    //    if ((mass > crit_mass))
+    //        gas = FALSE;
+    //    else
+    //        gas = TRUE;
+    //    node1 = dust_head;
+    //    while ((node1 != NULL))
+    //    {
+    //        if (((node1->inner_edge < min) && (node1->outer_edge > max)))
+    //        {
+    //            node2 = (dust *)malloc(sizeof(dust));
+    //            node2->inner_edge = min;
+    //            node2->outer_edge = max;
+    //            if ((node1->gas_present == TRUE))
+    //                node2->gas_present = gas;
+    //            else
+    //                node2->gas_present = FALSE;
+    //            node2->dust_present = FALSE;
+    //            node3 = (dust *)malloc(sizeof(dust));
+    //            node3->inner_edge = max;
+    //            node3->outer_edge = node1->outer_edge;
+    //            node3->gas_present = node1->gas_present;
+    //            node3->dust_present = node1->dust_present;
+    //            node3->next_band = node1->next_band;
     
-//            node1->next_band = node2;
-//            node2->next_band = node3;
-//            node1->outer_edge = min;
-//            node1 = node3->next_band;
-//        } /// HERE!!!
-//        else
-//            if (((node1->inner_edge < max) && (node1->outer_edge > max)))
-//            {
-//                node2 = (dust *)malloc(sizeof(dust));
-//                node2->next_band = node1->next_band;
-//                node2->dust_present = node1->dust_present;
-//                node2->gas_present = node1->gas_present;
-//                node2->outer_edge = node1->outer_edge;
-//                node2->inner_edge = max;
-//                node1->next_band = node2;
-//                node1->outer_edge = max;
-//                if ((node1->gas_present == TRUE))
-//                    node1->gas_present = gas;
-//                else
-//                    node1->gas_present = FALSE;
-//                node1->dust_present = FALSE;
-//                node1 = node2->next_band;
-//            }
-//            else
-//                if (((node1->inner_edge < min) && (node1->outer_edge > min)))
-//                {
-//                    node2 = (dust *)malloc(sizeof(dust));
-//                    node2->next_band = node1->next_band;
-//                    node2->dust_present = FALSE;
-//                    if ((node1->gas_present == TRUE))
-//                        node2->gas_present = gas;
-//                    else
-//                        node2->gas_present = FALSE;
-//                    node2->outer_edge = node1->outer_edge;
-//                    node2->inner_edge = min;
-//                    node1->next_band = node2;
-//                    node1->outer_edge = min;
-//                    node1 = node2->next_band;
-//                }
-//                else
-//                    if (((node1->inner_edge >= min) && (node1->outer_edge <= max)))
-//                    {
-//                        if ((node1->gas_present == TRUE))
-//                            node1->gas_present = gas;
-//                        node1->dust_present = FALSE;
-//                        node1 = node1->next_band;
-//                    }
-//                    else
-//                        if (((node1->outer_edge < min) || (node1->inner_edge > max)))
-//                            node1 = node1->next_band;
-//    }
-//    node1 = dust_head;
-//    while ((node1 != NULL))
-//    {
-//        if (((node1->dust_present)
-//            && (((node1->outer_edge >= body_inner_bound)
-//                && (node1->inner_edge <= body_outer_bound)))))
-//            dust_left = TRUE;
-//        node2 = node1->next_band;
-//        if ((node2 != NULL))
-//        {
-//            if (((node1->dust_present == node2->dust_present)
-//                && (node1->gas_present == node2->gas_present)))
-//            {
-//                node1->outer_edge = node2->outer_edge;
-//                node1->next_band = node2->next_band;
-//                free(node2);
-//            }
-//        }
-//        node1 = node1->next_band;
-//    }
-//}
+    //            node1->next_band = node2;
+    //            node2->next_band = node3;
+    //            node1->outer_edge = min;
+    //            node1 = node3->next_band;
+    //        }
+    //        else
+    //            if (((node1->inner_edge < max) && (node1->outer_edge > max)))
+    //            {
+    //                node2 = (dust *)malloc(sizeof(dust));
+    //                node2->next_band = node1->next_band;
+    //                node2->dust_present = node1->dust_present;
+    //                node2->gas_present = node1->gas_present;
+    //                node2->outer_edge = node1->outer_edge;
+    //                node2->inner_edge = max;
+    //                node1->next_band = node2;
+    //                node1->outer_edge = max;
+    //                if ((node1->gas_present == TRUE))
+    //                    node1->gas_present = gas;
+    //                else
+    //                    node1->gas_present = FALSE;
+    //                node1->dust_present = FALSE;
+    //                node1 = node2->next_band;
+    //            }
+    //            else
+    //                if (((node1->inner_edge < min) && (node1->outer_edge > min)))
+    //                {
+    //                    node2 = (dust *)malloc(sizeof(dust));
+    //                    node2->next_band = node1->next_band;
+    //                    node2->dust_present = FALSE;
+    //                    if ((node1->gas_present == TRUE))
+    //                        node2->gas_present = gas;
+    //                    else
+    //                        node2->gas_present = FALSE;
+    //                    node2->outer_edge = node1->outer_edge;
+    //                    node2->inner_edge = min;
+    //                    node1->next_band = node2;
+    //                    node1->outer_edge = min;
+    //                    node1 = node2->next_band;
+    //                }
+    //                else
+    //                    if (((node1->inner_edge >= min) && (node1->outer_edge <= max)))
+    //                    {
+    //                        if ((node1->gas_present == TRUE))
+    //                            node1->gas_present = gas;
+    //                        node1->dust_present = FALSE;
+    //                        node1 = node1->next_band;
+    //                    }
+    //                    else
+    //                        if (((node1->outer_edge < min) || (node1->inner_edge > max)))
+    //                            node1 = node1->next_band;
+    //    }
+    //    node1 = dust_head;
+    //    while ((node1 != NULL))
+    //    {
+    //        if (((node1->dust_present)
+    //            && (((node1->outer_edge >= body_inner_bound)
+    //                && (node1->inner_edge <= body_outer_bound)))))
+    //            dust_left = TRUE;
+    //        node2 = node1->next_band;
+    //        if ((node2 != NULL))
+    //        {
+    //            if (((node1->dust_present == node2->dust_present)
+    //                && (node1->gas_present == node2->gas_present)))
+    //            {
+    //                node1->outer_edge = node2->outer_edge;
+    //                node1->next_band = node2->next_band;
+    //                free(node2);
+    //            }
+    //        }
+    //        node1 = node1->next_band;
+    //    }
+    //}
 }
-}
+
 
 
 // recursive function called originally from `accrete_dust`
