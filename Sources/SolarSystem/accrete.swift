@@ -152,6 +152,16 @@ struct AccretionDisk {
 //    }
 
     func dust_available(inside_range: Double, outside_range: Double) -> Bool {
+        // This iterates through the linked-list of all the "bands of dust"
+        // (represented by Dust.next -> Dust.next -> nil) to search for the areas
+        // that match the region defined between inside_range and outside_range.
+        // If any dust band exists, and has dust, within those ranges, this will return
+        // true.
+        
+        // NOTE(heckj): refactoring note - I'll have to see how these dust bands are
+        // created and updated, but it might make a lot more sense to represent them in
+        // an array, maybe using range values to determine what elements of the array
+        // are relevant, and using a functional map or filter to return a boolean.
         var current_dust_band = dust_head
         var dust_here: Bool = false
         
@@ -198,7 +208,7 @@ struct AccretionDisk {
 }
 
 
-
+// called from `accrete_dust`
 void update_dust_lanes(long double min, long double max, long double mass,
                        long double crit_mass, long double body_inner_bound,
                        long double body_outer_bound)
@@ -305,6 +315,7 @@ void update_dust_lanes(long double min, long double max, long double mass,
     }
 }
 
+// recursive function called originally from `accrete_dust`
 long double collect_dust(long double last_mass, long double *new_dust,
                          long double *new_gas,
                          long double a, long double e,
@@ -410,7 +421,7 @@ long double critical_limit(long double orb_radius, long double eccentricity,
 }
 
 
-
+// called from `coalesce_planetesimals` and `dist_planetary_masses`
 void accrete_dust(long double *seed_mass, long double *new_dust, long double *new_gas,
                   long double a, long double e, long double crit_mass,
                   long double body_inner_bound, long double body_outer_bound)
@@ -431,7 +442,7 @@ void accrete_dust(long double *seed_mass, long double *new_dust, long double *ne
 }
 
 
-
+// called from `dist_planetary_masses`
 void coalesce_planetesimals(long double a, long double e, long double mass, long double crit_mass,
                             long double dust_mass, long double gas_mass,
                             long double stell_luminosity_ratio,
@@ -689,7 +700,7 @@ void coalesce_planetesimals(long double a, long double e, long double mass, long
     }
 }
 
-// primary entry point?
+// primary entry point? - called from SolarSystem
 planet_pointer dist_planetary_masses(long double stell_mass_ratio,
                                      long double stell_luminosity_ratio,
                                      long double inner_dust,
