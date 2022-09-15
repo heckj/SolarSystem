@@ -11,6 +11,9 @@ import Foundation
 /*        P-4226.                                                         */
 /*------------------------------------------------------------------------*/
 
+// NOTE(heckj): throughout this ported code, 'a' represents the AU distance from the core of the disk,
+// 'mass' is the accumulated mass at that AU, and 'e' represents the eccentricity of the mass being calculated.
+
 // Original C functions in header:
 //
 //void set_initial_conditions(long double, long double );
@@ -43,19 +46,25 @@ import Foundation
 // I'm encapsulating those into a struct, which seems a bit awkward, but better than slapping
 // around global variables and pointers to me.
 struct AccretionDisk {
-    var dust_left: Bool
-    var r_inner: Double
-    var r_outer: Double
-    var reduced_mass: Double
-    var dust_density: Double
-    var cloud_eccentricity: Double
+    var dust_left: Bool = true
+    var r_inner: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
+    var r_outer: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
+    var reduced_mass: Double = 0 //? unsure about initial value here - set within code?, but not at initial call sites
+    var dust_density: Double = 0 // initial value set within `dist_planetary_masses` and used while accumulating dust
+    // ^^ could probably be a constant, as I don't think it's changed after it's set, if we collapse initial settings
+    // and 'dist_planetary_masses' into some sort of initializer
+    var cloud_eccentricity: Double = 0.2
+    
+    // NOTE(heckj): create a proper initializer to set this value, aligned somewhere between the initializer and calling
+    // dist_planetary_masses, which is the primarily call site into this...
+    var prng = RNGWrapper(Xoshiro(seed: 541))
     
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
     // in C, so I've transferred that structure to reference types (final class), originally
     // defined in structs.h to the types included within Types.swift.
-    var dust_head: Dust?
-    var planet_head: Planet?
-    var generation_head: Generation?
+    var dust_head: Dust? = nil
+    var planet_head: Planet? = nil
+    var generation_head: Generation? = nil
     
     ///* Now for some variables global to the accretion process:        */
     //int             dust_left;
@@ -67,8 +76,6 @@ struct AccretionDisk {
     //dust_pointer    dust_head    = NULL;
     //planet_pointer    planet_head    = NULL;
     //gen_pointer        hist_head    = NULL;
-    
-    
     
     // called from dist_planetary_masses, which seems to be the primary entry point to these functions.
     // NOTE(heckj): This is completely setup related, so this might be WAY more sane in an
@@ -412,7 +419,7 @@ struct AccretionDisk {
         var    next_dust: Double = 0
         var    next_gas: Double = 0
         
-        let temp = last_mass / (1.0 + last_mass)
+        var temp = last_mass / (1.0 + last_mass)
         let reduced_mass = pow(temp,(1.0 / 4.0))
         
         var r_inner = inner_effect_limit(a: a, e: e, mass: reduced_mass);
@@ -593,25 +600,29 @@ struct AccretionDisk {
         update_dust_lanes(min: r_inner, max: r_outer, mass: seed_mass, crit_mass: crit_mass, body_inner_bound: body_inner_bound, body_outer_bound: body_outer_bound)
     }
     // called from `coalesce_planetesimals` and `dist_planetary_masses`
-//    void accrete_dust(long double *seed_mass, long double *new_dust, long double *new_gas,
-//                      long double a, long double e, long double crit_mass,
-//                      long double body_inner_bound, long double body_outer_bound)
-//    {
-//        long double    new_mass = (*seed_mass);
-//        long double    temp_mass;
-//
-//        do
-//        {
-//            temp_mass = new_mass;
-//            new_mass = collect_dust(new_mass, new_dust, new_gas,
-//                                    a,e,crit_mass, dust_head);
-//        }
-//        while (!(((new_mass - temp_mass) < (0.0001 * temp_mass))));
-//
-//        (*seed_mass) = (*seed_mass) + new_mass;
-//        update_dust_lanes(r_inner,r_outer,(*seed_mass),crit_mass,body_inner_bound,body_outer_bound);
-//    }
-
+    //    void accrete_dust(long double *seed_mass, long double *new_dust, long double *new_gas,
+    //                      long double a, long double e, long double crit_mass,
+    //                      long double body_inner_bound, long double body_outer_bound)
+    //    {
+    //        long double    new_mass = (*seed_mass);
+    //        long double    temp_mass;
+    //
+    //        do
+    //        {
+    //            temp_mass = new_mass;
+    //            new_mass = collect_dust(new_mass, new_dust, new_gas,
+    //                                    a,e,crit_mass, dust_head);
+    //        }
+    //        while (!(((new_mass - temp_mass) < (0.0001 * temp_mass))));
+    //
+    //        (*seed_mass) = (*seed_mass) + new_mass;
+    //        update_dust_lanes(r_inner,r_outer,(*seed_mass),crit_mass,body_inner_bound,body_outer_bound);
+    //    }
+    
+    // called from `dist_planetary_masses`
+    // NOTE(heckj): Refactoring note - it looks like we might be able to make this a lot easier
+    // by implementing a set of planets in an array and iterating through them, updating the ordering as needed. The
+    // current code is straight from the original accrete, and follows the linked-list mechanisms that were used there.
     mutating func coalesce_planetesimals(a: Double, e: Double, mass: Double, crit_mass: Double, dust_mass: Double, gas_mass: Double, stell_luminosity_ratio: Double, body_inner_bound: Double, body_outer_bound: Double, do_moons: Bool) {
         
         var the_planet: Planet? = nil
@@ -622,7 +633,7 @@ struct AccretionDisk {
         let dist2: Double
         var temp: Double = 0
         // First we try to find an existing planet with an over-lapping orbit.
-
+        
         the_planet = planet_head
         while let this_planet = the_planet {
             
@@ -651,7 +662,7 @@ struct AccretionDisk {
                 if temp < 0.0 || temp >= 1.0 {
                     temp = 0.0
                 }
-                e = sqrt(temp)
+                let e = sqrt(temp)
                 
                 if do_moons {
                     var existing_mass: Double = 0.0
@@ -666,21 +677,26 @@ struct AccretionDisk {
                         if mass * SUN_MASS_IN_EARTH_MASSES < 2.5 &&
                             mass * SUN_MASS_IN_EARTH_MASSES > 0.001 &&
                             existing_mass < this_planet.mass * 0.05 {
+                            //NOTE(heckj): Refactoring note - all we're really caring about with Planets (planetisimals)
+                            // at this point is mass (total, dust, gas) and distance (au), and to a lesser extent we
+                            // set gas_giant = true when it exceeds a critical mass point. So the rest of the initializer
+                            // bits are just excessive noise at this point, most of which can default to 0 to be calculated
+                            // at a later stage.
                             let the_moon = Planet(
-                                planet_no: <#T##Int#>,
+                                planet_no: 0,
                                 a: a,
                                 e: e,
-                                axial_tilt: <#T##Double#>,
+                                axial_tilt: 0,
                                 mass: mass,
                                 gas_giant: false,
                                 dust_mass: dust_mass, gas_mass: gas_mass,
-                                moon_a: <#T##Double#>, moon_e: <#T##Double#>,
-                                core_radius: <#T##Double#>, radius: <#T##Double#>,
-                                orbit_zone: <#T##Int#>,
-                                density: <#T##Double#>,
-                                orb_period: <#T##Double#>,
-                                day: <#T##Double#>,
-                                resonant_period: <#T##Bool#>,
+                                moon_a: 0, moon_e: 0,
+                                core_radius: 0, radius: 0,
+                                orbit_zone: 0,
+                                density: 0,
+                                orb_period: 0,
+                                day: 0,
+                                resonant_period: false,
                                 esc_velocity: 0,
                                 surf_accel: 0,
                                 surf_grav: 0,
@@ -695,507 +711,553 @@ struct AccretionDisk {
                                 greenhs_rise: 0,
                                 high_temp: 0, low_temp: 0, max_temp: 0, min_temp: 0,
                                 hydrosphere: 0, cloud_cover: 0, ice_cover: 0, // default to 0
-                                sun: <#T##Sun#>, gases: 0, atmosphere: nil, planet_type: .unknown,
+                                sun: nil, gases: 0, atmosphere: nil, planet_type: .unknown,
                                 minor_moons: 0, first_moon: nil, next_planet: nil)
+                            if (the_moon.dust_mass + the_moon.gas_mass) > this_planet.dust_mass + this_planet.gas_mass {
+                                // if the moon has more mass than the planet, switch them around
+                                
+                                let temp_dust = this_planet.dust_mass
+                                let temp_gas = this_planet.gas_mass;
+                                let temp_mass = this_planet.mass;
+                                
+                                this_planet.dust_mass = the_moon.dust_mass
+                                this_planet.gas_mass = the_moon.gas_mass
+                                this_planet.mass = the_moon.mass
+                                
+                                the_moon.dust_mass = temp_dust
+                                the_moon.gas_mass = temp_gas
+                                the_moon.mass = temp_mass
+                            }
                             
+                            if (this_planet.first_moon == nil) {
+                                // if this planet doesn't already have a first moon, make this one it's first moon
+                                this_planet.first_moon = the_moon
+                            } else {
+                                // otherwise insert it into the list of moons
+                                the_moon.next_planet = this_planet.first_moon
+                                this_planet.first_moon = the_moon
+                            }
+                            finished = true
+                            print("Moon captured: \(this_planet.a) AU \(this_planet.mass * SUN_MASS_IN_EARTH_MASSES) <- \(mass * SUN_MASS_IN_EARTH_MASSES)")
+                            
+                        } else {
+                            var escape_reason = ""
+                            if (mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 {
+                                escape_reason = ", too big"
+                            } else if ((mass * SUN_MASS_IN_EARTH_MASSES) <= 0.0001) {
+                                escape_reason = ", too small"
+                            }
+                            print("Moon escapes: \(this_planet.a) AU (\(this_planet.mass * SUN_MASS_IN_EARTH_MASSES))\(mass * SUN_MASS_IN_EARTH_MASSES) \(escape_reason)")
+                        }
                     }
-                        
                 }
+                if !finished {
+                    print("Collision between two planetesimals! \(this_planet.a) AU (\(this_planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(mass * SUN_MASS_IN_EARTH_MASSES)EM = \(dust_mass * SUN_MASS_IN_EARTH_MASSES)EMd + \(gas_mass * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(new_a) AU (\(e))")
+                    temp = this_planet.mass + mass
+                    accrete_dust(seed_mass: &temp, new_dust: &new_dust, new_gas: &new_gas, a: new_a, e: e, crit_mass: stell_luminosity_ratio, body_inner_bound: body_inner_bound, body_outer_bound: body_outer_bound)
+                    this_planet.a = new_a
+                    this_planet.e = e
+                    this_planet.mass = temp
+                    this_planet.dust_mass += dust_mass + new_dust
+                    this_planet.gas_mass += gas_mass + new_gas
+                    if (temp >= crit_mass) {
+                        this_planet.gas_giant = true
+                    }
+                    
+                    // Walk the list of planets and move the linked list around to re-order the planetisimals
+                    while (the_planet!.next_planet != nil && the_planet!.next_planet!.a < new_a) {
+                        next_planet = the_planet!.next_planet
+                        if (the_planet == planet_head) {
+                            planet_head = next_planet
+                        } else {
+                            prev_planet?.next_planet = next_planet
+                        }
+                        the_planet?.next_planet = next_planet?.next_planet
+                        next_planet?.next_planet = the_planet
+                        prev_planet = next_planet
+                    }
+                }
+                finished = true
+                break
+            } else {
+                prev_planet = the_planet
             }
         }
+    }
+    
+    
+    //void coalesce_planetesimals(long double a, long double e, long double mass, long double crit_mass,
+    //                            long double dust_mass, long double gas_mass,
+    //                            long double stell_luminosity_ratio,
+    //                            long double body_inner_bound, long double body_outer_bound,
+    //                            int            do_moons)
+    //{
+    //    planet_pointer    the_planet;
+    //    planet_pointer    next_planet;
+    //    planet_pointer    prev_planet;
+    //    int             finished;
+    //    long double     temp;
+    //    long double     diff;
+    //    long double     dist1;
+    //    long double     dist2;
+    //
+    //    finished = FALSE;
+    //    prev_planet = NULL;
+    //
+    //// First we try to find an existing planet with an over-lapping orbit.
+    //
+    //    for (the_planet = planet_head;
+    //         the_planet != NULL;
+    //         the_planet = the_planet->next_planet)
+    //    {
+    //        diff = the_planet->a - a;
+    //
+    //        if ((diff > 0.0))
+    //        {
+    //            dist1 = (a * (1.0 + e) * (1.0 + reduced_mass)) - a;
+    //            /* x aphelion     */
+    //            reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
+    //            dist2 = the_planet->a
+    //                - (the_planet->a * (1.0 - the_planet->e) * (1.0 - reduced_mass));
+    //        }
+    //        else
+    //        {
+    //            dist1 = a - (a * (1.0 - e) * (1.0 - reduced_mass));
+    //            /* x perihelion */
+    //            reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
+    //            dist2 = (the_planet->a * (1.0 + the_planet->e) * (1.0 + reduced_mass))
+    //                - the_planet->a;
+    //        }
+    //
+    //        if (((fabs(diff) <= fabs(dist1)) || (fabs(diff) <= fabs(dist2))))
+    //        {
+    //            long double new_dust = 0;
+    //            long double    new_gas = 0;
+    //            long double new_a = (the_planet->mass + mass) /
+    //                                ((the_planet->mass / the_planet->a) + (mass / a));
+    //
+    //            temp = the_planet->mass * sqrt(the_planet->a) * sqrt(1.0 - pow(the_planet->e,2.0));
+    //            temp = temp + (mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e,2.0))));
+    //            temp = temp / ((the_planet->mass + mass) * sqrt(new_a));
+    //            temp = 1.0 - pow(temp,2.0);
+    //            if (((temp < 0.0) || (temp >= 1.0)))
+    //                temp = 0.0;
+    //            e = sqrt(temp);
+    //
+    //            if (do_moons)
+    //            {
+    //                long double existing_mass = 0.0;
+    //
+    //                if (the_planet->first_moon != NULL)
+    //                {
+    //                    planet_pointer    m;
+    //
+    //                    for (m = the_planet->first_moon;
+    //                         m != NULL;
+    //                         m = m->next_planet)
+    //                    {
+    //                        existing_mass += m->mass;
+    //                    }
+    //                }
+    //
+    //                if (mass < crit_mass)
+    //                {
+    //                    if ((mass * SUN_MASS_IN_EARTH_MASSES) < 2.5
+    //                     && (mass * SUN_MASS_IN_EARTH_MASSES) > .0001
+    //                     && existing_mass < (the_planet->mass * .05)
+    //                       )
+    //                    {
+    //                        planet_pointer    the_moon = (planets *)malloc(sizeof(planets));
+    //
+    //                        the_moon->type             = tUnknown;
+    //    /*                     the_moon->a             = a; */
+    //    /*                     the_moon->e             = e; */
+    //                        the_moon->mass             = mass;
+    //                        the_moon->dust_mass     = dust_mass;
+    //                        the_moon->gas_mass         = gas_mass;
+    //                        the_moon->atmosphere     = NULL;
+    //                        the_moon->next_planet     = NULL;
+    //                        the_moon->first_moon     = NULL;
+    //                        the_moon->gas_giant     = FALSE;
+    //                        the_moon->atmosphere    = NULL;
+    //                        the_moon->albedo        = 0;
+    //                        the_moon->gases            = 0;
+    //                        the_moon->surf_temp        = 0;
+    //                        the_moon->high_temp        = 0;
+    //                        the_moon->low_temp        = 0;
+    //                        the_moon->max_temp        = 0;
+    //                        the_moon->min_temp        = 0;
+    //                        the_moon->greenhs_rise    = 0;
+    //                        the_moon->minor_moons     = 0;
+    //
+    //                        if ((the_moon->dust_mass + the_moon->gas_mass)
+    //                          > (the_planet->dust_mass + the_planet->gas_mass))
+    //                        {
+    //                            long double    temp_dust = the_planet->dust_mass;
+    //                            long double temp_gas  = the_planet->gas_mass;
+    //                            long double temp_mass = the_planet->mass;
+    //
+    //                            the_planet->dust_mass = the_moon->dust_mass;
+    //                            the_planet->gas_mass  = the_moon->gas_mass;
+    //                            the_planet->mass      = the_moon->mass;
+    //
+    //                            the_moon->dust_mass   = temp_dust;
+    //                            the_moon->gas_mass    = temp_gas;
+    //                            the_moon->mass        = temp_mass;
+    //                        }
+    //
+    //                        if (the_planet->first_moon == NULL)
+    //                            the_planet->first_moon = the_moon;
+    //                        else
+    //                        {
+    //                            the_moon->next_planet = the_planet->first_moon;
+    //                            the_planet->first_moon = the_moon;
+    //                        }
+    //
+    //                        finished = TRUE;
+    //
+    //                        if (flag_verbose & 0x0100)
+    //                            fprintf (stderr, "Moon Captured... "
+    //                                     "%5.3Lf AU (%.2LfEM) <- %.2LfEM\n",
+    //                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                    mass * SUN_MASS_IN_EARTH_MASSES
+    //                                    );
+    //                    }
+    //                    else
+    //                    {
+    //                        if (flag_verbose & 0x0100)
+    //                            fprintf (stderr, "Moon Escapes... "
+    //                                     "%5.3Lf AU (%.2LfEM)%s %.2LfEM%s\n",
+    //                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                    existing_mass < (the_planet->mass * .05) ? "" : " (big moons)",
+    //                                    mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                    (mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 ? ", too big" :
+    //                                      (mass * SUN_MASS_IN_EARTH_MASSES) <= .0001 ? ", too small" : ""
+    //                                    );
+    //                    }
+    //                }
+    //            }
+    //
+    //            if (!finished)
+    //            {
+    //                if (flag_verbose & 0x0100)
+    //                        fprintf (stderr, "Collision between two planetesimals! "
+    //                                "%4.2Lf AU (%.2LfEM) + %4.2Lf AU (%.2LfEM = %.2LfEMd + %.2LfEMg [%.3LfEM])-> %5.3Lf AU (%5.3Lf)\n",
+    //                                the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                a, mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                dust_mass * SUN_MASS_IN_EARTH_MASSES, gas_mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                crit_mass * SUN_MASS_IN_EARTH_MASSES,
+    //                                new_a, e);
+    //
+    //                temp = the_planet->mass + mass;
+    //                accrete_dust(&temp, &new_dust, &new_gas,
+    //                             new_a,e,stell_luminosity_ratio,
+    //                             body_inner_bound,body_outer_bound);
+    //
+    //                the_planet->a = new_a;
+    //                the_planet->e = e;
+    //                the_planet->mass = temp;
+    //                the_planet->dust_mass += dust_mass + new_dust;
+    //                the_planet->gas_mass += gas_mass + new_gas;
+    //                if (temp >= crit_mass)
+    //                    the_planet->gas_giant = TRUE;
+    //
+    //                while (the_planet->next_planet != NULL && the_planet->next_planet->a < new_a)
+    //                {
+    //                    next_planet = the_planet->next_planet;
+    //
+    //                    if (the_planet == planet_head)
+    //                        planet_head = next_planet;
+    //                    else
+    //                        prev_planet->next_planet = next_planet;
+    //
+    //                    the_planet->next_planet = next_planet->next_planet;
+    //                    next_planet->next_planet = the_planet;
+    //                    prev_planet = next_planet;
+    //                }
+    //            }
+    //
+    //            finished = TRUE;
+    //            break;
+    //        }
+    //        else
+    //        {
+    //            prev_planet = the_planet;
+    //        }
+    //    }
+    //
+    //    if (!(finished))            // Planetesimals didn't collide. Make it a planet.
+    //    {
+    //        the_planet = (planets *)malloc(sizeof(planets));
+    //
+    //        the_planet->type             = tUnknown;
+    //        the_planet->a                 = a;
+    //        the_planet->e                 = e;
+    //        the_planet->mass             = mass;
+    //        the_planet->dust_mass         = dust_mass;
+    //        the_planet->gas_mass         = gas_mass;
+    //        the_planet->atmosphere         = NULL;
+    //        the_planet->first_moon         = NULL;
+    //        the_planet->atmosphere        = NULL;
+    //        the_planet->albedo            = 0;
+    //        the_planet->gases            = 0;
+    //        the_planet->surf_temp        = 0;
+    //        the_planet->high_temp        = 0;
+    //        the_planet->low_temp        = 0;
+    //        the_planet->max_temp        = 0;
+    //        the_planet->min_temp        = 0;
+    //        the_planet->greenhs_rise    = 0;
+    //        the_planet->minor_moons     = 0;
+    //
+    //        if ((mass >= crit_mass))
+    //            the_planet->gas_giant = TRUE;
+    //        else
+    //            the_planet->gas_giant = FALSE;
+    //
+    //        if ((planet_head == NULL))
+    //        {
+    //            planet_head = the_planet;
+    //            the_planet->next_planet = NULL;
+    //        }
+    //        else if ((a < planet_head->a))
+    //        {
+    //            the_planet->next_planet = planet_head;
+    //            planet_head = the_planet;
+    //        }
+    //        else if ((planet_head->next_planet == NULL))
+    //        {
+    //            planet_head->next_planet = the_planet;
+    //            the_planet->next_planet = NULL;
+    //        }
+    //        else
+    //        {
+    //            next_planet = planet_head;
+    //            while (((next_planet != NULL) && (next_planet->a < a)))
+    //            {
+    //                prev_planet = next_planet;
+    //                next_planet = next_planet->next_planet;
+    //            }
+    //            the_planet->next_planet = next_planet;
+    //            prev_planet->next_planet = the_planet;
+    //        }
+    //    }
+    //}
+    
+    // primary entry point? - called from SolarSystem
+    mutating func dist_planetary_masses(stell_mass_ratio: Double, stell_luminosity_ratio: Double, inner_dust: Double, outer_dust:Double, outer_planet_limit: Double, dust_density_coeff: Double, seed_system: Planet?, do_moons: Bool) -> Planet? {
+        var a: Double
+        var e: Double
+        var mass: Double = PROTOPLANET_MASS
+        var dust_mass: Double = 0
+        var gas_mass: Double = 0
+        var crit_mass: Double
+        var planet_inner_bound: Double
+        var planet_outer_bound: Double
+        var seeds: Planet? = seed_system
         
-
-//    for (the_planet = planet_head;
-//         the_planet != NULL;
-//         the_planet = the_planet->next_planet)
-//    {
-//        diff = the_planet->a - a;
-//
-
-//        if (((fabs(diff) <= fabs(dist1)) || (fabs(diff) <= fabs(dist2))))
-//        {
+        set_initial_conditions(inner_limit_of_dust: inner_dust, outer_limit_of_dust: outer_dust)
+        planet_inner_bound = nearest_planet(stell_mass_ratio: stell_mass_ratio)
+        if planet_outer_bound == 0 {
+            planet_outer_bound = farthest_planet(stell_mass_ratio: stell_mass_ratio)
+        } else {
+            planet_outer_bound = outer_planet_limit
+        }
         
-//            if (do_moons)
-//            {
-//                long double existing_mass = 0.0;
-
-//                if (mass < crit_mass)
-//                {
-//                    if ((mass * SUN_MASS_IN_EARTH_MASSES) < 2.5
-//                     && (mass * SUN_MASS_IN_EARTH_MASSES) > .0001
-//                     && existing_mass < (the_planet->mass * .05)
-//                       )
-//                    {
-//                        planet_pointer    the_moon = (planets *)malloc(sizeof(planets));
-
-                        if ((the_moon->dust_mass + the_moon->gas_mass)
-                          > (the_planet->dust_mass + the_planet->gas_mass))
-                        {
-                            long double    temp_dust = the_planet->dust_mass;
-                            long double temp_gas  = the_planet->gas_mass;
-                            long double temp_mass = the_planet->mass;
-
-                            the_planet->dust_mass = the_moon->dust_mass;
-                            the_planet->gas_mass  = the_moon->gas_mass;
-                            the_planet->mass      = the_moon->mass;
-
-                            the_moon->dust_mass   = temp_dust;
-                            the_moon->gas_mass    = temp_gas;
-                            the_moon->mass        = temp_mass;
-                        }
-
-                        if (the_planet->first_moon == NULL)
-                            the_planet->first_moon = the_moon;
-                        else
-                        {
-                            the_moon->next_planet = the_planet->first_moon;
-                            the_planet->first_moon = the_moon;
-                        }
-
-                        finished = TRUE;
-
-                        if (flag_verbose & 0x0100)
-                            fprintf (stderr, "Moon Captured... "
-                                     "%5.3Lf AU (%.2LfEM) <- %.2LfEM\n",
-                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-                                    mass * SUN_MASS_IN_EARTH_MASSES
-                                    );
-                    }
-                    else
-                    {
-                        if (flag_verbose & 0x0100)
-                            fprintf (stderr, "Moon Escapes... "
-                                     "%5.3Lf AU (%.2LfEM)%s %.2LfEM%s\n",
-                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-                                    existing_mass < (the_planet->mass * .05) ? "" : " (big moons)",
-                                    mass * SUN_MASS_IN_EARTH_MASSES,
-                                    (mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 ? ", too big" :
-                                      (mass * SUN_MASS_IN_EARTH_MASSES) <= .0001 ? ", too small" : ""
-                                    );
-                    }
-                }
+        while(dust_left) {
+            if let definitely_seed = seeds {
+                a = definitely_seed.a
+                e = definitely_seed.e
+                seeds = definitely_seed.next_planet
+            } else {
+                a = prng.random_number(in: planet_inner_bound...planet_outer_bound)
+                e = prng.random_eccentricity()
             }
 
-    }
+            print("Checking \(a) AU")
 
-// called from `dist_planetary_masses`
-//void coalesce_planetesimals(long double a, long double e, long double mass, long double crit_mass,
-//                            long double dust_mass, long double gas_mass,
-//                            long double stell_luminosity_ratio,
-//                            long double body_inner_bound, long double body_outer_bound,
-//                            int            do_moons)
+            if dust_available(inside_range: inner_effect_limit(a: a, e: e, mass: mass),
+                              outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
+                print("Injecting protoplanet at \(a) AU")
+                
+                dust_density = dust_density_coeff * sqrt(stell_mass_ratio) * exp(-ALPHA * pow(a,(1.0 / N)))
+                crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stell_luminosity_ratio)
+                
+                accrete_dust(seed_mass: &mass, new_dust: &dust_mass, new_gas: &gas_mass, a: a, e: e, crit_mass: crit_mass, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound)
+                dust_mass += PROTOPLANET_MASS
+                
+                if mass > PROTOPLANET_MASS {
+                    coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stell_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
+                } else {
+                    print("failed..")
+                }
+
+            }
+        }
+        return(planet_head)
+    }
+    
+    //planet_pointer dist_planetary_masses(long double stell_mass_ratio,
+    //                                     long double stell_luminosity_ratio,
+    //                                     long double inner_dust,
+    //                                     long double outer_dust,
+    //                                     long double outer_planet_limit,
+    //                                     long double dust_density_coeff,
+    //                                     planet_pointer seed_system,
+    //                                     int         do_moons)
+    //{
+    //    long double     a;
+    //    long double     e;
+    //    long double     mass;
+    //    long double        dust_mass;
+    //    long double        gas_mass;
+    //    long double     crit_mass;
+    //    long double     planet_inner_bound;
+    //    long double     planet_outer_bound;
+    //    planet_pointer     seeds = seed_system;
+    //
+    //    set_initial_conditions(inner_dust,outer_dust);
+    //    planet_inner_bound = nearest_planet(stell_mass_ratio);
+    //
+    //    if (outer_planet_limit == 0)
+    //        planet_outer_bound = farthest_planet(stell_mass_ratio);
+    //    else
+    //        planet_outer_bound = outer_planet_limit;
+    //
+    //    while (dust_left)
+    //    {
+    //        if (seeds != NULL)
+    //        {
+    //            a = seeds->a;
+    //            e = seeds->e;
+    //            seeds = seeds->next_planet;
+    //        }
+    //        else
+    //        {
+    //            a = random_number(planet_inner_bound,planet_outer_bound);
+    //            e = random_eccentricity( );
+    //        }
+    //
+    //        mass      = PROTOPLANET_MASS;
+    //        dust_mass = 0;
+    //        gas_mass  = 0;
+    //
+    //        if (flag_verbose & 0x0200)
+    //            fprintf (stderr, "Checking %Lg AU.\n",a);
+    //
+    //        if (dust_available(inner_effect_limit(a, e, mass),
+    //                           outer_effect_limit(a, e, mass)))
+    //        {
+    //            if (flag_verbose & 0x0100)
+    //                fprintf (stderr, "Injecting protoplanet at %Lg AU.\n", a);
+    //
+    //            dust_density = dust_density_coeff * sqrt(stell_mass_ratio)
+    //                           * exp(-ALPHA * pow(a,(1.0 / N)));
+    //            crit_mass = critical_limit(a,e,stell_luminosity_ratio);
+    //            accrete_dust(&mass, &dust_mass, &gas_mass,
+    //                         a,e,crit_mass,
+    //                         planet_inner_bound,
+    //                         planet_outer_bound);
+    //
+    //            dust_mass += PROTOPLANET_MASS;
+    //
+    //            if (mass > PROTOPLANET_MASS)
+    //                coalesce_planetesimals(a,e,mass,crit_mass,
+    //                                       dust_mass, gas_mass,
+    //                                       stell_luminosity_ratio,
+    //                                       planet_inner_bound,planet_outer_bound,
+    //                                       do_moons);
+    //            else if (flag_verbose & 0x0100)
+    //                fprintf (stderr, ".. failed due to large neighbor.\n");
+    //        }
+    //        else if (flag_verbose & 0x0200)
+    //            fprintf (stderr, ".. failed.\n");
+    //    }
+    //    return(planet_head);
+    //}
+
+}
+
+//
+//void free_dust (dust_pointer head)
 //{
-//    planet_pointer    the_planet;
-//    planet_pointer    next_planet;
-//    planet_pointer    prev_planet;
-//    int             finished;
-//    long double     temp;
-//    long double     diff;
-//    long double     dist1;
-//    long double     dist2;
+//    dust_pointer    node;
+//    dust_pointer    next;
 //
-//    finished = FALSE;
-//    prev_planet = NULL;
-//
-//// First we try to find an existing planet with an over-lapping orbit.
-//
-//    for (the_planet = planet_head;
-//         the_planet != NULL;
-//         the_planet = the_planet->next_planet)
+//    for(node = head;
+//        node != NULL;
+//        node = next)
 //    {
-//        diff = the_planet->a - a;
-//
-//        if ((diff > 0.0))
-//        {
-//            dist1 = (a * (1.0 + e) * (1.0 + reduced_mass)) - a;
-//            /* x aphelion     */
-//            reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
-//            dist2 = the_planet->a
-//                - (the_planet->a * (1.0 - the_planet->e) * (1.0 - reduced_mass));
-//        }
-//        else
-//        {
-//            dist1 = a - (a * (1.0 - e) * (1.0 - reduced_mass));
-//            /* x perihelion */
-//            reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
-//            dist2 = (the_planet->a * (1.0 + the_planet->e) * (1.0 + reduced_mass))
-//                - the_planet->a;
-//        }
-//
-//        if (((fabs(diff) <= fabs(dist1)) || (fabs(diff) <= fabs(dist2))))
-//        {
-//            long double new_dust = 0;
-//            long double    new_gas = 0;
-//            long double new_a = (the_planet->mass + mass) /
-//                                ((the_planet->mass / the_planet->a) + (mass / a));
-//
-//            temp = the_planet->mass * sqrt(the_planet->a) * sqrt(1.0 - pow(the_planet->e,2.0));
-//            temp = temp + (mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e,2.0))));
-//            temp = temp / ((the_planet->mass + mass) * sqrt(new_a));
-//            temp = 1.0 - pow(temp,2.0);
-//            if (((temp < 0.0) || (temp >= 1.0)))
-//                temp = 0.0;
-//            e = sqrt(temp);
-//
-//            if (do_moons)
-//            {
-//                long double existing_mass = 0.0;
-//
-//                if (the_planet->first_moon != NULL)
-//                {
-//                    planet_pointer    m;
-//
-//                    for (m = the_planet->first_moon;
-//                         m != NULL;
-//                         m = m->next_planet)
-//                    {
-//                        existing_mass += m->mass;
-//                    }
-//                }
-//
-//                if (mass < crit_mass)
-//                {
-//                    if ((mass * SUN_MASS_IN_EARTH_MASSES) < 2.5
-//                     && (mass * SUN_MASS_IN_EARTH_MASSES) > .0001
-//                     && existing_mass < (the_planet->mass * .05)
-//                       )
-//                    {
-//                        planet_pointer    the_moon = (planets *)malloc(sizeof(planets));
-//
-//                        the_moon->type             = tUnknown;
-//    /*                     the_moon->a             = a; */
-//    /*                     the_moon->e             = e; */
-//                        the_moon->mass             = mass;
-//                        the_moon->dust_mass     = dust_mass;
-//                        the_moon->gas_mass         = gas_mass;
-//                        the_moon->atmosphere     = NULL;
-//                        the_moon->next_planet     = NULL;
-//                        the_moon->first_moon     = NULL;
-//                        the_moon->gas_giant     = FALSE;
-//                        the_moon->atmosphere    = NULL;
-//                        the_moon->albedo        = 0;
-//                        the_moon->gases            = 0;
-//                        the_moon->surf_temp        = 0;
-//                        the_moon->high_temp        = 0;
-//                        the_moon->low_temp        = 0;
-//                        the_moon->max_temp        = 0;
-//                        the_moon->min_temp        = 0;
-//                        the_moon->greenhs_rise    = 0;
-//                        the_moon->minor_moons     = 0;
-//
-//                        if ((the_moon->dust_mass + the_moon->gas_mass)
-//                          > (the_planet->dust_mass + the_planet->gas_mass))
-//                        {
-//                            long double    temp_dust = the_planet->dust_mass;
-//                            long double temp_gas  = the_planet->gas_mass;
-//                            long double temp_mass = the_planet->mass;
-//
-//                            the_planet->dust_mass = the_moon->dust_mass;
-//                            the_planet->gas_mass  = the_moon->gas_mass;
-//                            the_planet->mass      = the_moon->mass;
-//
-//                            the_moon->dust_mass   = temp_dust;
-//                            the_moon->gas_mass    = temp_gas;
-//                            the_moon->mass        = temp_mass;
-//                        }
-//
-//                        if (the_planet->first_moon == NULL)
-//                            the_planet->first_moon = the_moon;
-//                        else
-//                        {
-//                            the_moon->next_planet = the_planet->first_moon;
-//                            the_planet->first_moon = the_moon;
-//                        }
-//
-//                        finished = TRUE;
-//
-//                        if (flag_verbose & 0x0100)
-//                            fprintf (stderr, "Moon Captured... "
-//                                     "%5.3Lf AU (%.2LfEM) <- %.2LfEM\n",
-//                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-//                                    mass * SUN_MASS_IN_EARTH_MASSES
-//                                    );
-//                    }
-//                    else
-//                    {
-//                        if (flag_verbose & 0x0100)
-//                            fprintf (stderr, "Moon Escapes... "
-//                                     "%5.3Lf AU (%.2LfEM)%s %.2LfEM%s\n",
-//                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-//                                    existing_mass < (the_planet->mass * .05) ? "" : " (big moons)",
-//                                    mass * SUN_MASS_IN_EARTH_MASSES,
-//                                    (mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 ? ", too big" :
-//                                      (mass * SUN_MASS_IN_EARTH_MASSES) <= .0001 ? ", too small" : ""
-//                                    );
-//                    }
-//                }
-//            }
-//
-//            if (!finished)
-//            {
-//                if (flag_verbose & 0x0100)
-//                        fprintf (stderr, "Collision between two planetesimals! "
-//                                "%4.2Lf AU (%.2LfEM) + %4.2Lf AU (%.2LfEM = %.2LfEMd + %.2LfEMg [%.3LfEM])-> %5.3Lf AU (%5.3Lf)\n",
-//                                the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-//                                a, mass * SUN_MASS_IN_EARTH_MASSES,
-//                                dust_mass * SUN_MASS_IN_EARTH_MASSES, gas_mass * SUN_MASS_IN_EARTH_MASSES,
-//                                crit_mass * SUN_MASS_IN_EARTH_MASSES,
-//                                new_a, e);
-//
-//                temp = the_planet->mass + mass;
-//                accrete_dust(&temp, &new_dust, &new_gas,
-//                             new_a,e,stell_luminosity_ratio,
-//                             body_inner_bound,body_outer_bound);
-//
-//                the_planet->a = new_a;
-//                the_planet->e = e;
-//                the_planet->mass = temp;
-//                the_planet->dust_mass += dust_mass + new_dust;
-//                the_planet->gas_mass += gas_mass + new_gas;
-//                if (temp >= crit_mass)
-//                    the_planet->gas_giant = TRUE;
-//
-//                while (the_planet->next_planet != NULL && the_planet->next_planet->a < new_a)
-//                {
-//                    next_planet = the_planet->next_planet;
-//
-//                    if (the_planet == planet_head)
-//                        planet_head = next_planet;
-//                    else
-//                        prev_planet->next_planet = next_planet;
-//
-//                    the_planet->next_planet = next_planet->next_planet;
-//                    next_planet->next_planet = the_planet;
-//                    prev_planet = next_planet;
-//                }
-//            }
-//
-//            finished = TRUE;
-//            break;
-//        }
-//        else
-//        {
-//            prev_planet = the_planet;
-//        }
+//        next = node->next_band;
+//        free (node);
 //    }
 //
-//    if (!(finished))            // Planetesimals didn't collide. Make it a planet.
+//}
+//
+//void free_planet (planet_pointer head)
+//{
+//    planet_pointer    node;
+//    planet_pointer    next;
+//
+//    for(node = head;
+//        node != NULL;
+//        node = next)
 //    {
-//        the_planet = (planets *)malloc(sizeof(planets));
+//        next = node->next_planet;
 //
-//        the_planet->type             = tUnknown;
-//        the_planet->a                 = a;
-//        the_planet->e                 = e;
-//        the_planet->mass             = mass;
-//        the_planet->dust_mass         = dust_mass;
-//        the_planet->gas_mass         = gas_mass;
-//        the_planet->atmosphere         = NULL;
-//        the_planet->first_moon         = NULL;
-//        the_planet->atmosphere        = NULL;
-//        the_planet->albedo            = 0;
-//        the_planet->gases            = 0;
-//        the_planet->surf_temp        = 0;
-//        the_planet->high_temp        = 0;
-//        the_planet->low_temp        = 0;
-//        the_planet->max_temp        = 0;
-//        the_planet->min_temp        = 0;
-//        the_planet->greenhs_rise    = 0;
-//        the_planet->minor_moons     = 0;
+//        free (node);
+//    }
+//}
 //
-//        if ((mass >= crit_mass))
-//            the_planet->gas_giant = TRUE;
-//        else
-//            the_planet->gas_giant = FALSE;
+//void free_generations()
+//{
+//    gen_pointer    node;
+//    gen_pointer    next;
 //
-//        if ((planet_head == NULL))
+//    for(node = hist_head;
+//        node != NULL;
+//        node = next)
+//    {
+//        next = node->next;
+//
+//        if (node->dusts)
+//            free_dust (node->dusts);
+//
+//        if (node->planets)
+//            free_planet (node->planets);
+//
+//        free (node);
+//    }
+//
+//    if (dust_head != NULL)
+//        free_dust (dust_head);
+//
+//    if (planet_head != NULL)
+//        free_planet (planet_head);
+//
+//    dust_head = NULL;
+//    planet_head = NULL;
+//    hist_head = NULL;
+//}
+//
+//void free_atmosphere(planet_pointer head)
+//{
+//    planet_pointer    node;
+//
+//    for (node = head;
+//         node != NULL;
+//         node = node->next_planet)
+//    {
+//        if (node->atmosphere != NULL)
 //        {
-//            planet_head = the_planet;
-//            the_planet->next_planet = NULL;
+//            free(node->atmosphere);
+//
+//            node->atmosphere = NULL;
 //        }
-//        else if ((a < planet_head->a))
+//
+//        if (node->first_moon != NULL)
 //        {
-//            the_planet->next_planet = planet_head;
-//            planet_head = the_planet;
-//        }
-//        else if ((planet_head->next_planet == NULL))
-//        {
-//            planet_head->next_planet = the_planet;
-//            the_planet->next_planet = NULL;
-//        }
-//        else
-//        {
-//            next_planet = planet_head;
-//            while (((next_planet != NULL) && (next_planet->a < a)))
-//            {
-//                prev_planet = next_planet;
-//                next_planet = next_planet->next_planet;
-//            }
-//            the_planet->next_planet = next_planet;
-//            prev_planet->next_planet = the_planet;
+//            free_atmosphere(node->first_moon);
 //        }
 //    }
 //}
-}
-// primary entry point? - called from SolarSystem
-planet_pointer dist_planetary_masses(long double stell_mass_ratio,
-                                     long double stell_luminosity_ratio,
-                                     long double inner_dust,
-                                     long double outer_dust,
-                                     long double outer_planet_limit,
-                                     long double dust_density_coeff,
-                                     planet_pointer seed_system,
-                                     int         do_moons)
-{
-    long double     a;
-    long double     e;
-    long double     mass;
-    long double        dust_mass;
-    long double        gas_mass;
-    long double     crit_mass;
-    long double     planet_inner_bound;
-    long double     planet_outer_bound;
-    planet_pointer     seeds = seed_system;
-    
-    set_initial_conditions(inner_dust,outer_dust);
-    planet_inner_bound = nearest_planet(stell_mass_ratio);
-    
-    if (outer_planet_limit == 0)
-        planet_outer_bound = farthest_planet(stell_mass_ratio);
-    else
-        planet_outer_bound = outer_planet_limit;
-        
-    while (dust_left)
-    {
-        if (seeds != NULL)
-        {
-            a = seeds->a;
-            e = seeds->e;
-            seeds = seeds->next_planet;
-        }
-        else
-        {
-            a = random_number(planet_inner_bound,planet_outer_bound);
-            e = random_eccentricity( );
-        }
-        
-        mass      = PROTOPLANET_MASS;
-        dust_mass = 0;
-        gas_mass  = 0;
-        
-        if (flag_verbose & 0x0200)
-            fprintf (stderr, "Checking %Lg AU.\n",a);
-            
-        if (dust_available(inner_effect_limit(a, e, mass),
-                           outer_effect_limit(a, e, mass)))
-        {
-            if (flag_verbose & 0x0100)
-                fprintf (stderr, "Injecting protoplanet at %Lg AU.\n", a);
-            
-            dust_density = dust_density_coeff * sqrt(stell_mass_ratio)
-                           * exp(-ALPHA * pow(a,(1.0 / N)));
-            crit_mass = critical_limit(a,e,stell_luminosity_ratio);
-            accrete_dust(&mass, &dust_mass, &gas_mass,
-                         a,e,crit_mass,
-                         planet_inner_bound,
-                         planet_outer_bound);
-            
-            dust_mass += PROTOPLANET_MASS;
-            
-            if (mass > PROTOPLANET_MASS)
-                coalesce_planetesimals(a,e,mass,crit_mass,
-                                       dust_mass, gas_mass,
-                                       stell_luminosity_ratio,
-                                       planet_inner_bound,planet_outer_bound,
-                                       do_moons);
-            else if (flag_verbose & 0x0100)
-                fprintf (stderr, ".. failed due to large neighbor.\n");
-        }
-        else if (flag_verbose & 0x0200)
-            fprintf (stderr, ".. failed.\n");
-    }
-    return(planet_head);
-}
-
-void free_dust (dust_pointer head)
-{
-    dust_pointer    node;
-    dust_pointer    next;
-    
-    for(node = head;
-        node != NULL;
-        node = next)
-    {
-        next = node->next_band;
-        free (node);
-    }
-    
-}
-
-void free_planet (planet_pointer head)
-{
-    planet_pointer    node;
-    planet_pointer    next;
-    
-    for(node = head;
-        node != NULL;
-        node = next)
-    {
-        next = node->next_planet;
-
-        free (node);
-    }
-}
-
-void free_generations()
-{
-    gen_pointer    node;
-    gen_pointer    next;
-    
-    for(node = hist_head;
-        node != NULL;
-        node = next)
-    {
-        next = node->next;
-        
-        if (node->dusts)
-            free_dust (node->dusts);
-            
-        if (node->planets)
-            free_planet (node->planets);
-
-        free (node);
-    }
-    
-    if (dust_head != NULL)
-        free_dust (dust_head);
-
-    if (planet_head != NULL)
-        free_planet (planet_head);
-
-    dust_head = NULL;
-    planet_head = NULL;
-    hist_head = NULL;
-}
-
-void free_atmosphere(planet_pointer head)
-{
-    planet_pointer    node;
-    
-    for (node = head;
-         node != NULL;
-         node = node->next_planet)
-    {
-        if (node->atmosphere != NULL)
-        {
-            free(node->atmosphere);
-            
-            node->atmosphere = NULL;
-        }
-
-        if (node->first_moon != NULL)
-        {
-            free_atmosphere(node->first_moon);
-        }
-    }
-}
 

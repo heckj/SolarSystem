@@ -7,6 +7,7 @@
 //typedef struct dust_record    *dust_pointer;
 //typedef struct planets_record  *planet_pointer;
 //typedef struct gen *gen_pointer;
+import Foundation
 
 enum PlanetType {
     case unknown
@@ -78,7 +79,15 @@ final class Sun {
 //    char        *name;
 //    } sun;
 
-final class Planet {
+final class Planet: Equatable {
+    
+    // NOTE(heckj): I slapped in a quick unique identifier for each generated planet to easily
+    // compare linked list references...
+    static func == (lhs: Planet, rhs: Planet) -> Bool {
+        lhs.id == rhs.id
+    }
+    var id: UUID = UUID()
+    
     var planet_no: Int
     var a: Double /* semi-major axis of solar orbit (in AU)*/
     var e: Double /* eccentricity of solar orbit         */
@@ -120,7 +129,7 @@ final class Planet {
     var    cloud_cover: Double        /* fraction of surface covered         */
     var    ice_cover: Double            /* fraction of surface covered         */
 
-    var sun: Sun
+    var sun: Sun?
     var gases: Int /* Count of gases in the atmosphere: */
     var atmosphere: Gas?
     
@@ -129,7 +138,7 @@ final class Planet {
     var first_moon: Planet?
     var next_planet: Planet?
     
-    init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, moon_a: Double, moon_e: Double, core_radius: Double, radius: Double, orbit_zone: Int, density: Double, orb_period: Double, day: Double, resonant_period: Bool, esc_velocity: Double, surf_accel: Double, surf_grav: Double, rms_velocity: Double, molec_weight: Double, volatile_gas_inventory: Double, surf_pressure: Double, greenhouse_effect: Bool, boil_point: Double, albedo: Double, exospheric_temp: Double, estimated_temp: Double, estimated_terr_temp: Double, surf_temp: Double, greenhs_rise: Double, high_temp: Double, low_temp: Double, max_temp: Double, min_temp: Double, hydrosphere: Double, cloud_cover: Double, ice_cover: Double, sun: Sun, gases: Int, atmosphere: Gas?, planet_type: PlanetType, minor_moons: Int, first_moon: Planet?, next_planet: Planet?) {
+    init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, moon_a: Double, moon_e: Double, core_radius: Double, radius: Double, orbit_zone: Int, density: Double, orb_period: Double, day: Double, resonant_period: Bool, esc_velocity: Double, surf_accel: Double, surf_grav: Double, rms_velocity: Double, molec_weight: Double, volatile_gas_inventory: Double, surf_pressure: Double, greenhouse_effect: Bool, boil_point: Double, albedo: Double, exospheric_temp: Double, estimated_temp: Double, estimated_terr_temp: Double, surf_temp: Double, greenhs_rise: Double, high_temp: Double, low_temp: Double, max_temp: Double, min_temp: Double, hydrosphere: Double, cloud_cover: Double, ice_cover: Double, sun: Sun?, gases: Int, atmosphere: Gas?, planet_type: PlanetType, minor_moons: Int, first_moon: Planet?, next_planet: Planet?) {
         self.planet_no = planet_no
         self.a = a
         self.e = e
