@@ -126,6 +126,8 @@ struct AccretionDisk {
     //        return(200.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
     //    }
     
+    // Uses the stellar mass ratio to determine the closest "interior" planet
+    // that would likely form. The result is in "AU".
     func nearest_planet(stell_mass_ratio: Double) -> Double {
         0.3 * pow(stell_mass_ratio, (1.0/3.0))
     }
@@ -134,6 +136,8 @@ struct AccretionDisk {
     //        return(0.3 * pow(stell_mass_ratio,(1.0 / 3.0)));
     //    }
     
+    // Uses the stellar mass ratio to determine the farthest planet
+    // that would likely form. The result is in "AU".
     func farthest_planet(stell_mass_ratio: Double) -> Double {
         50.0 * pow(stell_mass_ratio, (1.0/3.0))
     }
@@ -143,6 +147,8 @@ struct AccretionDisk {
     //    }
     
     func inner_effect_limit(a: Double, e: Double, mass: Double) -> Double {
+        // Given an orbital distance, mass, and eccentricity, calculates the
+        // inner-most distance (in AU) that the orbit "sweeps up" dust.
         a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity)
     }
     //    long double inner_effect_limit(long double a, long double e, long double mass)
@@ -151,6 +157,8 @@ struct AccretionDisk {
     //    }
     
     func outer_effect_limit(a: Double, e: Double, mass: Double) -> Double {
+        // Given an orbital distance, mass, and eccentricity, calculates the
+        // outer-most distance (in AU) that the orbit "sweeps up" dust.
         a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity)
     }
     //    long double outer_effect_limit(long double a, long double e, long double mass)
@@ -217,6 +225,12 @@ struct AccretionDisk {
     
     // called from `accrete_dust`
     mutating func update_dust_lanes(min: Double, max: Double, mass: Double, crit_mass: Double, body_inner_bound: Double, body_outer_bound: Double) {
+        // With the collected mass accumulated earlier in sweeping through the dust lanes, we need to deplete the dust
+        // stored within our data structures (the linked list of dust lanes) between the inner_bound and outer_bound
+        // distances in AU.
+        
+        // This does so by updating the linked list, breaking up the dust into separate lanes and they get "swept through"
+        // and accumulated into masses.
         
         var gas: Bool = (mass <= crit_mass)
         var node1: Dust? = nil
@@ -404,6 +418,9 @@ struct AccretionDisk {
     
     // called from `accrete_dust`
     func collect_dust(last_mass: Double, new_dust: inout Double, new_gas: inout Double, a: Double, e: Double, crit_mass: Double, dust_band: Dust?) -> Double {
+        // recursively sweeps through the existing dust lanes, recursively walking down the linked list of dust lanes
+        // and collecting all the dust defined by the initial orbit position (a: in AU) with an eccentricity (e), the boundary
+        // markers of which are calculated by inner_effect_limit() and outer_effect_limit().
         
         var mass_density: Double
         var    temp1: Double
@@ -443,7 +460,9 @@ struct AccretionDisk {
             mass_density = K * temp_density / (1.0 + sqrt(crit_mass / last_mass) * (K - 1.0))
             gas_density = mass_density - temp_density
         }
+        
         if dust_band.outer_edge <= r_inner || dust_band.inner_edge >= r_outer {
+            // nothing in this band, walk down and process the next...
             return collect_dust(last_mass: last_mass, new_dust: &new_dust, new_gas: &new_gas, a: a, e: e, crit_mass: crit_mass, dust_band: dust_band.next_band)
         } else {
             bandwidth = (r_outer - r_inner)
@@ -588,6 +607,9 @@ struct AccretionDisk {
     
     // called from `coalesce_planetesimals` and `dist_planetary_masses`
     mutating func accrete_dust(seed_mass: inout Double, new_dust: inout Double, new_gas: inout Double, a: Double, e: Double, crit_mass: Double, body_inner_bound: Double, body_outer_bound: Double) {
+        // This function is effectively creating planetesimals, sweeping through dust lanes using 'collect dust' until
+        // it stops growing at a notable rate. That's set by the comparison of "mass collected" and the last sweep through
+        // being less thatn 0.0001 times larger than the previous sweep.
         var new_mass = seed_mass
         var temp_mass: Double
         repeat {
@@ -1045,9 +1067,9 @@ struct AccretionDisk {
     
     // primary entry point? - called from SolarSystem
     mutating func dist_planetary_masses(stell_mass_ratio: Double, stell_luminosity_ratio: Double, inner_dust: Double, outer_dust:Double, outer_planet_limit: Double, dust_density_coeff: Double, seed_system: Planet?, do_moons: Bool) -> Planet? {
-        var a: Double
-        var e: Double
-        var mass: Double = PROTOPLANET_MASS
+        var a: Double // distance, in AU
+        var e: Double // eccentricity of orbit
+        var mass: Double = PROTOPLANET_MASS // units of Solar Mass
         var dust_mass: Double = 0
         var gas_mass: Double = 0
         var crit_mass: Double
@@ -1063,6 +1085,9 @@ struct AccretionDisk {
             planet_outer_bound = outer_planet_limit
         }
         
+        // The general flow is to seed planetesimals that start gravitational accretion
+        // (called 'gravitational instability' in current (~2020) astrophysics research)
+        // and continue to deploy "seeds" until the dust of the disk is "consumed".
         while(dust_left) {
             if let definitely_seed = seeds {
                 a = definitely_seed.a
@@ -1079,7 +1104,12 @@ struct AccretionDisk {
                               outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
                 print("Injecting protoplanet at \(a) AU")
                 
+                // NOTE(heckj): this is used in collect_dist, which is called from inside accrete_dust - and doesn't
+                // appear to be changing, so this calculation likely doesn't need to be within the loop
+                // and could be part of setting up initial conditions.
                 dust_density = dust_density_coeff * sqrt(stell_mass_ratio) * exp(-ALPHA * pow(a,(1.0 / N)))
+                
+                // Determine the mass (in solar masses) at which a body will start accumulating gasses
                 crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stell_luminosity_ratio)
                 
                 accrete_dust(seed_mass: &mass, new_dust: &dust_mass, new_gas: &gas_mass, a: a, e: e, crit_mass: crit_mass, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound)
