@@ -65,7 +65,7 @@ struct AccretionDisk {
         
         // original code sets up history _before_ adding explicit dust cloud and details,
         // so I think the first iteration of history is intended to be empty...
-        var hist = Generation(dust: nil, planet: nil, next: nil)
+        let hist = Generation(dust: nil, planet: nil, next: nil)
         hist.dust = dust_head
         hist.planet = planet_head
         generation_head = hist
@@ -212,7 +212,7 @@ struct AccretionDisk {
         // This does so by updating the linked list, breaking up the dust into separate lanes and they get "swept through"
         // and accumulated into masses.
         
-        var gas: Bool = (mass <= crit_mass)
+        let gas: Bool = (mass <= crit_mass)
         var node1: Dust? = nil
         var node2: Dust? = nil
         var node3: Dust? = nil
@@ -656,7 +656,7 @@ struct AccretionDisk {
             if fabs(diff) <= fabs(dist1) || fabs(diff) <= fabs(dist2) {
                 var new_dust: Double = 0
                 var new_gas: Double = 0
-                var new_a = (this_planet.mass + mass) / ((this_planet.mass / this_planet.a) + (mass / a))
+                let new_a = (this_planet.mass + mass) / ((this_planet.mass / this_planet.a) + (mass / a))
                 temp = this_planet.mass * sqrt(this_planet.a) * sqrt(1.0 - pow(this_planet.e, 2.0))
                 temp += (mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e, 2.0))))
                 temp /= ((this_planet.mass + mass) * sqrt(new_a))
