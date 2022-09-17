@@ -26,7 +26,7 @@ public struct SolarSystem {
 //                                             //  the ref directory with images
 //             char *            filename_arg,    // Output file name (optional)
 //             char *            sys_name_arg,    // Human readble System name (opt.)
-//             
+//
 //             FILE *            sgOut,            // Main stream to write to
 //                                             //    Thumbnails will be written there
 //                                             //  for HTML format
@@ -38,9 +38,9 @@ public struct SolarSystem {
 //             int            incr_arg,        // Amount to increment seed by
 //             catalog *        cat_arg,        // A star catalog (see below)
 //             int            sys_no_arg,        // Star within a catalog (0 = all)
-//             
+//
 //             long double    ratio_arg,        // Change dust density (experimental)
-//             
+//
 //             int            flags_arg,        // Options (see below)
 //             int            out_format,        // Output file formats (see below)
 //             int            graphic_format    // Graphic file formats (see below)
@@ -123,87 +123,38 @@ public struct SolarSystem {
 //
 //extern char *    stargen_revision;        // RCS revision of stargen.c
 //
-//
-///*
-// *    StarGen API
-// *
-// *    This file provides the main program interface to StarGen.
-// *    An example of calling it is the command-line interface defined in
-// *    main.c.
-// *
-// *    $Id: stargen.c,v 1.43 2008/12/30 23:15:13 brons Exp $
-// */
-//
-//#include    <stdio.h>
-//#include    <stdlib.h>
-//#include    <string.h>
-//#include    <math.h>
-//#include    <time.h>
-//#include    <ctype.h>
-//
-//#include    "Dumas.h"
-//
-//#ifdef THINK_C
-//#define macintosh 1
-//#endif
-//
-//#ifdef macintosh
-//#include    <console.h>
-//#include    <unix.h>
-//#else
-//#include    <sys/types.h>
-//#endif
-//
-//#ifdef MSDOS
-//#include    <stddef.h>
-//#include    <stdlib.h>
-//#include    <float.h>
-//#endif
-//
-//#ifdef WIN32
-//#pragma warning (disable: 4048) // Hush compiler - don't complain about storing specific arrays in generic pointers
-//#endif
-//
-//#include    "const.h"
-//#include    "structs.h"
-//#include     "accrete.h"
-//#include    "enviro.h"
-//#include    "display.h"
-//#include    "stargen.h"
-//#include    "utils.h"
-//
-//char *    stargen_revision = "$Revision: 1.43 $";
-//
-///*  These are the global variables used during accretion:  */
+
+
+/*  These are the global variables used during accretion:  */
 //planet_pointer    innermost_planet;
 //long double        dust_density_coeff = DUST_DENSITY_COEFF;
 //
 //
 //int flag_verbose = 0;
-//// 0x0001            Earthlike count
-//// 0x0002            Trace Min/max
-//// 0x0004            List habitable
-//// 0x0008            List Earth-like (and Sphinx-line)
-//
-//// 0x0010            List Gases
-//// 0x0020            Trace temp iterations
-//// 0x0040            Gas lifetimes
-//// 0x0080            List loss of accreted gas mass
-//
-//// 0x0100            Injecting, collision
-//// 0x0200            Checking..., Failed...
-//// 0x0400            List binary info
-//// 0x0800            List Gas Dwarfs etc.
-//
-//// 0x1000            Moons
-//// 0x2000            Oxygen poisoned
-//// 0x4000            Trace gas %ages (whoops)
-//// 0x8000            Jovians in habitable zone
-//
-//// 0x10000            List type diversity
-//// 0x20000            Trace Surface temp interations
-//// 0x40000            Lunar orbits
-//
+// 0x0001            Earthlike count
+// 0x0002            Trace Min/max
+// 0x0004            List habitable
+// 0x0008            List Earth-like (and Sphinx-line)
+
+// 0x0010            List Gases
+// 0x0020            Trace temp iterations
+// 0x0040            Gas lifetimes
+// 0x0080            List loss of accreted gas mass
+
+// 0x0100            Injecting, collision
+// 0x0200            Checking..., Failed...
+// 0x0400            List binary info
+// 0x0800            List Gas Dwarfs etc.
+
+// 0x1000            Moons
+// 0x2000            Oxygen poisoned
+// 0x4000            Trace gas %ages (whoops)
+// 0x8000            Jovians in habitable zone
+
+// 0x10000            List type diversity
+// 0x20000            Trace Surface temp interations
+// 0x40000            Lunar orbits
+
 //long flag_seed         = 0;
 //
 //int earthlike         = 0;
@@ -230,22 +181,34 @@ public struct SolarSystem {
 //int type_counts[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
 //int    type_count = 0;
 //int max_type_count = 0;
-//
-//#define EM(x)        (x)/SUN_MASS_IN_EARTH_MASSES
+
+/// Returns the mass (in Solar Masses) given a relative "Earth Mass" value (1.0 = Earth)
+/// - Parameter x: The earth mass to convert
+func EM(_ x:Double) -> Double {
+    return x/SUN_MASS_IN_EARTH_MASSES
+}
+
 //#define AVE(x,y)    ((x+y)/2.)
-//
-//            /*       No Orbit   Eccen. Tilt Mass    Gas Giant? Dust Mass   Gas */
-//planets luna     ={1,2.571e-3,0.055,1.53, EM(.01229), FALSE, EM(.01229), 0, ZEROES,0,NULL, NULL};
-//planets callisto ={4,1.259e-2,0    ,0   , EM(1.62e-2),FALSE,EM(1.62-2 ), 0, ZEROES,0,NULL, NULL};
-//planets ganymede ={3,7.16e-3,0.0796,0   , EM(2.6e-2 ),FALSE,EM(2.6e-2 ), 0, ZEROES,0,NULL, &callisto};
-//planets europa   ={2,4.49e-3,0.0075,0   , EM(7.9e-3 ),FALSE,EM(7.9e-3 ), 0, ZEROES,0,NULL, &ganymede};
-//planets io       ={1,2.82e-3,0.0006,0   , EM(1.21e-2),FALSE,EM(1.21e-2), 0, ZEROES,0,NULL, &europa};
+
+// Earth Moons
+let luna = Planet(planet_no: 1, a: 2.571e-3, e: 0.055, axial_tilt: 1.53, mass: EM(0.01229), gas_giant: false,
+                  dust_mass: EM(0.01229), gas_mass: 0, next_planet: nil)
+
+// Jupiter Moons
+let callisto = Planet(planet_no: 4, a: 1.259e-2, e: 0, axial_tilt: 0, mass: EM(1.62e-2), gas_giant: false, dust_mass: EM(1.62e-2), gas_mass: 0, next_planet: nil)
+let ganymede = Planet(planet_no: 3, a: 7.16e-3, e: 0.0796, axial_tilt: 0, mass: EM(2.6e-2 ), gas_giant: false, dust_mass: EM(2.6e-2 ), gas_mass: 0, next_planet: callisto)
+let europa = Planet(planet_no: 2, a: 4.49e-3, e: 0.0075, axial_tilt: 0, mass: EM(7.9e-3 ), gas_giant: false, dust_mass: EM(7.9e-3 ), gas_mass: 0, next_planet: ganymede)
+let io = Planet(planet_no: 1, a: 2.82e-3, e: 0.0006, axial_tilt: 0, mass: EM(1.21e-2), gas_giant: false, dust_mass: EM(1.21e-2), gas_mass: 0, next_planet: europa)
+
+// Saturn Moons
+
 //planets iapetus  ={6,2.38e-2,0.029, 0   , EM(8.4e-4 ),FALSE,EM(8.4e-4 ), 0, ZEROES,0,NULL, NULL};
 //planets hyperion ={5,9.89e-3,0.110, 0   , EM(1.82e-5),FALSE,EM(1.82e-5), 0, ZEROES,0,NULL, &iapetus};
 //planets titan    ={4,8.17e-3,0.0289,0   , EM(2.3e-2 ),FALSE,EM(2.3e-2 ), 0, ZEROES,0,NULL, &hyperion};
 //planets rhea     ={3,3.52e-3,0.0009,0   , EM(3.85e-4),FALSE,EM(3.85e-4), 0, ZEROES,0,NULL, &titan};
 //planets dione    ={2,2.52e-3,0.0021,0   , EM(1.74e-4),FALSE,EM(1.74e-4), 0, ZEROES,0,NULL, &rhea};
 //planets tethys   ={1,1.97e-3,0.000, 0   , EM(1.09e-4),FALSE,EM(1.09e-4), 0, ZEROES,0,NULL, &dione};
+
 //planets triton   ={1,2.36e-3,0.000, 0   , EM(2.31e-2),FALSE,EM(2.31e-2), 0, ZEROES,0,NULL, NULL};
 //planets charon   ={1,19571/
 //                   KM_PER_AU,0.000, 0   , EM(2.54e-4),FALSE,EM(2.54e-4), 0, ZEROES,0,NULL, NULL};
@@ -293,7 +256,7 @@ public struct SolarSystem {
 //planets    smallest={0, 0.0, 0.0,    20.0,    EM(0.4),   FALSE,  EM(0.4),   0.0, ZEROES,0,NULL, NULL};
 //planets    average    ={0, 0.0, 0.0,    20.0,    EM(1.0),   FALSE,  EM(1.0),    0.0, ZEROES,0,NULL, NULL};
 //planets    largest    ={0, 0.0, 0.0,    20.0,    EM(1.6),   FALSE,  EM(1.6),   0.0, ZEROES,0,NULL, NULL};
-// 
+//
 //                /*    L  Mass    Mass2    Eccen.    SemiMajorAxis    Designation    Name    */
 //star    perdole[] = {{0, 1.00,    0,        0,        0,                 &mercury,    "Sol",         1, "The Solar System"},
 //                     {0, 1.08,    0.88,    0.52,    23.2,             NULL,        "ALF Cen A", 1, "Alpha Centauri A"},
@@ -408,42 +371,10 @@ public struct SolarSystem {
 //catalog    dole        = {sizeof(perdole) / sizeof (star), "d",    &perdole};
 //catalog jimb        = {sizeof(various) / sizeof (star), "F",    &various};
 //
-//ChemTable    gases[] =
-//{
-////   An   sym   HTML symbol                      name                 Aw      melt    boil    dens       ABUNDe       ABUNDs         Rea    Max inspired pp
-//  {AN_H,  "H",  "H<SUB><SMALL>2</SMALL></SUB>",     "Hydrogen",         1.0079,  14.06,  20.40,  8.99e-05,  0.00125893,  27925.4,       1,        0.0},
-//  {AN_HE, "He", "He",                             "Helium",           4.0026,   3.46,   4.20,  0.0001787, 7.94328e-09, 2722.7,        0,        MAX_HE_IPP},
-//  {AN_N,  "N",  "N<SUB><SMALL>2</SMALL></SUB>",     "Nitrogen",        14.0067,  63.34,  77.40,  0.0012506, 1.99526e-05, 3.13329,       0,        MAX_N2_IPP},
-//  {AN_O,  "O",  "O<SUB><SMALL>2</SMALL></SUB>",     "Oxygen",          15.9994,  54.80,  90.20,  0.001429,  0.501187,    23.8232,       10,    MAX_O2_IPP},
-//  {AN_NE, "Ne", "Ne",                             "Neon",            20.1700,  24.53,  27.10,  0.0009,    5.01187e-09, 3.4435e-5,     0,        MAX_NE_IPP},
-//  {AN_AR, "Ar", "Ar",                             "Argon",           39.9480,  84.00,  87.30,  0.0017824, 3.16228e-06, 0.100925,      0,        MAX_AR_IPP},
-//  {AN_KR, "Kr", "Kr",                             "Krypton",         83.8000, 116.60, 119.70,  0.003708,  1e-10,       4.4978e-05,    0,        MAX_KR_IPP},
-//  {AN_XE, "Xe", "Xe",                             "Xenon",          131.3000, 161.30, 165.00,  0.00588,   3.16228e-11, 4.69894e-06,   0,        MAX_XE_IPP},
-////                                                                     from here down, these columns were originally: 0.001,         0
-//  {AN_NH3, "NH3", "NH<SUB><SMALL>3</SMALL></SUB>", "Ammonia",       17.0000, 195.46, 239.66,  0.001,     0.002,       0.0001,        1,        MAX_NH3_IPP},
-//  {AN_H2O, "H2O", "H<SUB><SMALL>2</SMALL></SUB>O", "Water",         18.0000, 273.16, 373.16,  1.000,     0.03,        0.001,         0,        0.0},
-//  {AN_CO2, "CO2", "CO<SUB><SMALL>2</SMALL></SUB>", "CarbonDioxide", 44.0000, 194.66, 194.66,  0.001,     0.01,        0.0005,        0,        MAX_CO2_IPP},
-//  {AN_O3,   "O3", "O<SUB><SMALL>3</SMALL></SUB>",  "Ozone",         48.0000,  80.16, 161.16,  0.001,     0.001,       0.000001,      2,        MAX_O3_IPP},
-//  {AN_CH4, "CH4", "CH<SUB><SMALL>4</SMALL></SUB>", "Methane",       16.0000,  90.16, 109.16,  0.010,     0.005,       0.0001,        1,        MAX_CH4_IPP},
-//  { 0, "", "", 0, 0, 0, 0, 0, 0, 0, 0, 0}
-//};
 //
-///*
-//  {AN_NH3, "NH3", "NH<SUB><SMALL>3</SMALL></SUB>", "Ammonia",       17.0000, 195.46, 239.66,  0.001,     0.002,       0.001,         0.001,    MAX_NH3_IPP},
-//  {AN_H2O, "H2O", "H<SUB><SMALL>2</SMALL></SUB>O", "Water",         18.0000, 273.16, 373.16,  1.000,     0.03,        0.001,         0,        (9.9999E37)},
-//  {AN_CO2, "CO2", "CO<SUB><SMALL>2</SMALL></SUB>", "CarbonDioxide", 44.0000, 194.66, 194.66,  0.001,     0.01,        0.001,         0,        MAX_CO2_IPP},
-//  {AN_O3,   "O3", "O<SUB><SMALL>3</SMALL></SUB>",  "Ozone",         48.0000,  80.16, 161.16,  0.001,     0.001,       0.001,         0.001,    MAX_O3_IPP},
-//  {AN_CH4, "CH4", "CH<SUB><SMALL>4</SMALL></SUB>", "Methane",       16.0000,  90.16, 109.16,  0.010,     0.005,       0.001,         0,        MAX_CH4_IPP},
 //
-//  {AN_F,  "F",  "F",                             "Fluorine",        18.9984,  53.58,  85.10,  0.001696,  0.000630957, 0.000843335,   50,    MAX_F_IPP},
-//  {AN_CL, "Cl", "Cl",                             "Chlorine",        35.4530, 172.22, 239.20,  0.003214,  0.000125893, 0.005236,      40,    MAX_CL_IPP},
 //
-//  { 910, "H2", "H2",  2, 14.06, 20.40, 8.99e-05,  0.00125893, 27925.4  },
-//  { 911, "N2", "N2", 28, 63.34, 77.40, 0.0012506, 1.99526e-05,3.13329  },
-//  { 912, "O2", "O2", 32, 54.80, 90.20, 0.001429,  0.501187, 23.8232, 10},
-//  {AN_CH3CH2OH,
-//           "CH3CH2OH", "Ethanol",  46.0000, 159.06, 351.66,  0.895,     0.001,       0.001,         0},
-//*/
+//
 //int max_gas = (sizeof(gases)/sizeof(ChemTable))-1;
 //
 //void init(void);
@@ -463,13 +394,14 @@ public struct SolarSystem {
 //        unsigned    seed = (unsigned)(time(&temp_time));
 //
 //        (void)srand(seed);
-//        
+//
 //        flag_seed = rand();
 //    }
-//    
+//
 //    (void)srand(flag_seed);
 //}
 //
+//// called from stargen()
 //void generate_stellar_system(sun*            sun,
 //                             int             use_seed_system,
 //                             planet_pointer seed_system,
@@ -489,7 +421,7 @@ public struct SolarSystem {
 //
 //    if (sun->luminosity == 0)
 //        sun->luminosity     = luminosity(sun->mass);
-//    
+//
 //    sun->r_ecosphere     = sqrt(sun->luminosity);
 //    sun->life             = 1.0E10 * (sun->mass / sun->luminosity);
 //
@@ -502,10 +434,10 @@ public struct SolarSystem {
 //    {
 //        long double min_age = 1.0E9;
 //        long double max_age = 6.0E9;
-//        
+//
 //        if (sun->life < max_age)
 //            max_age = sun->life;
-//        
+//
 //        innermost_planet = dist_planetary_masses(sun->mass,
 //                                                 sun->luminosity,
 //                                                 0.0,outer_dust_limit,
@@ -543,7 +475,7 @@ public struct SolarSystem {
 //            long double yp = gases[i].boil /
 //                             (373. * ((log((pressure) + 0.001) / -5050.5) +
 //                                     (1.0 / 373.)));
-//            
+//
 //            if ((yp >= 0 && yp < planet->low_temp)
 //             && (gases[i].weight >= planet->molec_weight))
 //            {
@@ -553,7 +485,7 @@ public struct SolarSystem {
 //                long double react    = 1.0;
 //                long double fract    = 1.0;
 //                long double pres2    = 1.0;
-//            
+//
 //                if (strcmp(gases[i].symbol, "Ar") == 0)
 //                {
 //                    react = .15 * sun->age/4e9;
@@ -590,9 +522,9 @@ public struct SolarSystem {
 //                    react = pow(1 / (1 + gases[i].reactivity),
 //                                sun->age/2e9 * pres2);
 //                }
-//                
+//
 //                fract = (1 - (planet->molec_weight / gases[i].weight));
-//                
+//
 //                amount[i] = abund * pvrms * react * fract;
 //
 //                if ((flag_verbose & 0x4000) &&
@@ -627,7 +559,7 @@ public struct SolarSystem {
 //        {
 //            planet->gases = n;
 //            planet->atmosphere = (gas*)calloc(n, sizeof(gas));
-//            
+//
 //            for (i = 0, n = 0; i < max_gas; i++)
 //            {
 //                if (amount[i] > 0.0)
@@ -647,7 +579,7 @@ public struct SolarSystem {
 //                                     planet_id);
 //                        }
 //                    }
-//                    
+//
 //                    n++;
 //                }
 //            }
@@ -661,7 +593,7 @@ public struct SolarSystem {
 //            {
 //                fprintf (stderr, "\n%s (%5.1Lf AU) gases:\n",
 //                        planet_id, planet->a);
-//                
+//
 //                for (i = 0; i < planet->gases; i++)
 //                {
 //                    fprintf (stderr, "%3d: %6.1Lf, %11.7Lf%%\n",
@@ -673,7 +605,7 @@ public struct SolarSystem {
 //                }
 //            }
 //        }
-//        
+//
 //        free(amount);
 //    }
 //}
@@ -711,10 +643,10 @@ public struct SolarSystem {
 //        // Calculate the radius as a gas giant, to verify it will retain gas.
 //        // Then if mass > Earth, it's at least 5% gas and retains He, it's
 //        // some flavor of gas giant.
-//        
+//
 //        planet->density         = empirical_density(planet->mass,planet->a, sun->r_ecosphere, TRUE);
 //        planet->radius             = volume_radius(planet->mass,planet->density);
-//        
+//
 //        planet->surf_accel       = acceleration(planet->mass,planet->radius);
 //        planet->surf_grav          = gravity(planet->surf_accel);
 //
@@ -738,41 +670,41 @@ public struct SolarSystem {
 //
 //            planet->surf_accel  = acceleration(planet->mass,planet->radius);
 //            planet->surf_grav     = gravity(planet->surf_accel);
-//            
+//
 //            if ((planet->gas_mass / planet->mass)        > 0.000001)
 //            {
 //                long double h2_mass = planet->gas_mass * 0.85;
 //                long double he_mass = (planet->gas_mass - h2_mass) * 0.999;
-//                
+//
 //                long double h2_loss = 0.0;
 //                long double he_loss = 0.0;
-//                
-//                             
+//
+//
 //                long double h2_life = gas_life(MOL_HYDROGEN, planet);
 //                long double he_life = gas_life(HELIUM, planet);
-//                                
+//
 //                if (h2_life < sun->age)
 //                {
 //                    h2_loss = ((1.0 - (1.0 / exp(sun->age / h2_life))) * h2_mass);
-//                    
+//
 //                    planet->gas_mass -= h2_loss;
 //                    planet->mass     -= h2_loss;
-//                    
+//
 //                    planet->surf_accel  = acceleration(planet->mass,planet->radius);
 //                    planet->surf_grav     = gravity(planet->surf_accel);
 //                }
-//                
+//
 //                if (he_life < sun->age)
 //                {
 //                    he_loss = ((1.0 - (1.0 / exp(sun->age / he_life))) * he_mass);
-//                    
+//
 //                    planet->gas_mass -= he_loss;
 //                    planet->mass     -= he_loss;
-//                    
+//
 //                    planet->surf_accel  = acceleration(planet->mass,planet->radius);
 //                    planet->surf_grav     = gravity(planet->surf_accel);
 //                }
-//                
+//
 //                if (((h2_loss + he_loss) > .000001) && (flag_verbose & 0x0080))
 //                    fprintf (stderr, "%s\tLosing gas: H2: %5.3Lf EM, He: %5.3Lf EM\n",
 //                             planet_id,
@@ -790,9 +722,9 @@ public struct SolarSystem {
 //            planet->greenhouse_effect         = FALSE;
 //            planet->volatile_gas_inventory     = INCREDIBLY_LARGE_NUMBER;
 //            planet->surf_pressure             = INCREDIBLY_LARGE_NUMBER;
-//            
+//
 //            planet->boil_point                 = INCREDIBLY_LARGE_NUMBER;
-//            
+//
 //            planet->surf_temp                = INCREDIBLY_LARGE_NUMBER;
 //            planet->greenhs_rise             = 0;
 //            planet->albedo                     = about(GAS_GIANT_ALBEDO,0.1);
@@ -804,7 +736,7 @@ public struct SolarSystem {
 //            planet->surf_grav                 = INCREDIBLY_LARGE_NUMBER;
 //             planet->estimated_temp            = est_temp(sun->r_ecosphere, planet->a,  planet->albedo);
 //            planet->estimated_terr_temp        = est_temp(sun->r_ecosphere, planet->a,  EARTH_ALBEDO);
-//             
+//
 //            {
 //                long double temp = planet->estimated_terr_temp;
 //
@@ -813,7 +745,7 @@ public struct SolarSystem {
 //                 && (sun->age > 2.0E9))
 //                {
 //                    habitable_jovians++;
-//                
+//
 //                    if (flag_verbose & 0x8000)
 //                    {
 //                        fprintf (stderr, "%s\t%s (%4.2LfEM %5.3Lf By)%s with earth-like temperature (%.1Lf C, %.1Lf F, %+.1Lf C Earth).\n",
@@ -839,7 +771,7 @@ public struct SolarSystem {
 //
 //            planet->surf_grav                 = gravity(planet->surf_accel);
 //            planet->molec_weight            = min_molec_weight(planet);
-//    
+//
 //            planet->greenhouse_effect         = grnhouse(sun->r_ecosphere, planet->a);
 //            planet->volatile_gas_inventory     = vol_inventory(planet->mass,
 //                                                            planet->esc_velocity,
@@ -857,7 +789,7 @@ public struct SolarSystem {
 //                planet->boil_point             = 0.0;
 //            else
 //                planet->boil_point             = boiling_point(planet->surf_pressure);
-//            
+//
 //            iterate_surface_temp(planet);        /*    Sets:
 //                                                 *        planet->surf_temp
 //                                                 *        planet->greenhs_rise
@@ -871,11 +803,11 @@ public struct SolarSystem {
 //                (planet->max_temp >= FREEZING_POINT_OF_WATER) &&
 //                (planet->min_temp <= planet->boil_point))
 //                calculate_gases(sun, planet, planet_id);
-//            
+//
 //            /*
 //             *    Next we assign a type to the planet.
 //             */
-//             
+//
 //            if (planet->surf_pressure < 1.0)
 //            {
 //                if (!is_moon
@@ -918,7 +850,7 @@ public struct SolarSystem {
 //                else
 //                {
 //                    planet->type = tUnknown;
-//                    
+//
 //                    if (flag_verbose & 0x0001)
 //                        fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
 //                                        type_string (planet->type),
@@ -950,25 +882,25 @@ public struct SolarSystem {
 //                        char    moon_id[80];
 //                        long double    roche_limit = 0.0;
 //                        long double    hill_sphere = 0.0;
-//                        
+//
 //                        ptr->a = planet->a;
 //                        ptr->e = planet->e;
-//                        
+//
 //                        n++;
-//                        
+//
 //                        sprintf(moon_id,
 //                                "%s.%d",
 //                                planet_id, n);
-//                        
+//
 //                        generate_planet(ptr, n,
 //                                        sun, random_tilt,
 //                                        moon_id,
 //                                        do_gases,
 //                                        do_moons, TRUE);    // Adjusts ptr->density
-//                        
+//
 //                        roche_limit = 2.44 * planet->radius * pow((planet->density / ptr->density), (1.0 / 3.0));
 //                        hill_sphere = planet->a * KM_PER_AU * pow((planet->mass / (3.0 * sun->mass)), (1.0 / 3.0));
-//                        
+//
 //                        if ((roche_limit * 3.0) < hill_sphere)
 //                        {
 //                            ptr->moon_a = random_number(roche_limit * 1.5, hill_sphere / 2.0) / KM_PER_AU;
@@ -979,7 +911,7 @@ public struct SolarSystem {
 //                            ptr->moon_a = 0;
 //                            ptr->moon_e = 0;
 //                        }
-//                        
+//
 //                        if (flag_verbose & 0x40000)
 //                        {
 //                            fprintf (stderr,
@@ -994,7 +926,7 @@ public struct SolarSystem {
 //                                        ptr->moon_a * KM_PER_AU, ptr->moon_e
 //                                    );
 //                        }
-//                        
+//
 //                        if (flag_verbose & 0x1000)
 //                        {
 //                            fprintf (stderr, "  %s: (%7.2LfEM) %d %4.2LgEM\n",
@@ -1016,7 +948,7 @@ public struct SolarSystem {
 //{
 //    {
 //        int tIndex = 0;
-//    
+//
 //        switch (planet->type)
 //        {
 //            case tUnknown:            tIndex = 0;        break;
@@ -1032,19 +964,19 @@ public struct SolarSystem {
 //            case tAsteroids:         tIndex = 10;    break;
 //            case t1Face:            tIndex = 11;    break;
 //        }
-//        
+//
 //        if (type_counts[tIndex] == 0)
 //            ++type_count;
-//        
+//
 //        ++type_counts[tIndex];
-//        
+//
 //    }
-//    
+//
 //    /* Check for and list planets with breathable atmospheres */
-//    
+//
 //    {
 //        unsigned int breathe = breathability (planet);
-//        
+//
 //        if ((breathe == BREATHABLE) &&
 //            (!planet->resonant_period) &&        // Option needed?
 //            ((int)planet->day != (int)(planet->orb_period * 24.0)))
@@ -1052,9 +984,9 @@ public struct SolarSystem {
 //            int    list_it    = FALSE;
 //            long double illumination = pow2 (1.0 / planet->a)
 //                                        * (planet->sun)->luminosity;
-//            
+//
 //            habitable++;
-//            
+//
 //            if (min_breathable_temp > planet->surf_temp)
 //            {
 //                min_breathable_temp = planet->surf_temp;
@@ -1070,7 +1002,7 @@ public struct SolarSystem {
 //                if (flag_verbose & 0x0002)
 //                    list_it = TRUE;
 //            }
-//        
+//
 //            if (min_breathable_g > planet->surf_grav)
 //            {
 //                min_breathable_g = planet->surf_grav;
@@ -1078,7 +1010,7 @@ public struct SolarSystem {
 //                if (flag_verbose & 0x0002)
 //                    list_it = TRUE;
 //            }
-//            
+//
 //            if (max_breathable_g < planet->surf_grav)
 //            {
 //                max_breathable_g = planet->surf_grav;
@@ -1086,7 +1018,7 @@ public struct SolarSystem {
 //                if (flag_verbose & 0x0002)
 //                    list_it = TRUE;
 //            }
-//            
+//
 //            if (min_breathable_l > illumination)
 //            {
 //                min_breathable_l = illumination;
@@ -1094,7 +1026,7 @@ public struct SolarSystem {
 //                if (flag_verbose & 0x0002)
 //                    list_it = TRUE;
 //            }
-//            
+//
 //            if (max_breathable_l < illumination)
 //            {
 //                max_breathable_l = illumination;
@@ -1102,7 +1034,7 @@ public struct SolarSystem {
 //                if (flag_verbose & 0x0002)
 //                    list_it = TRUE;
 //            }
-//            
+//
 //            if (planet->type == tTerrestrial)
 //            {
 //                if (min_breathable_terrestrial_g > planet->surf_grav)
@@ -1145,7 +1077,7 @@ public struct SolarSystem {
 //                if (flag_verbose & 0x0002)
 //                    list_it = TRUE;
 //            }
-//            
+//
 //            if (max_breathable_p < planet->surf_pressure)
 //            {
 //                max_breathable_p = planet->surf_pressure;
@@ -1156,7 +1088,7 @@ public struct SolarSystem {
 //
 //            if (flag_verbose & 0x0004)
 //                list_it = TRUE;
-//            
+//
 //            if (list_it)
 //            fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\tl=%4.2Lf\t%s\n",
 //                        type_string (planet->type),
@@ -1192,7 +1124,7 @@ public struct SolarSystem {
 //       )
 //    {
 //        int core_size = (int)((50. * planet->core_radius) / planet->radius);
-//        
+//
 //        if (core_size <= 49)
 //        {
 //            fprintf (stderr, "%12s\tp=%4.2Lf\tr=%4.2Lf\tm=%4.2Lf\t%s\t%d\n",
@@ -1204,7 +1136,7 @@ public struct SolarSystem {
 //                    50-core_size);
 //        }
 //    }
-//    
+//
 //    {
 //        long double  rel_temp   = (planet->surf_temp -  FREEZING_POINT_OF_WATER) -
 //                                   EARTH_AVERAGE_CELSIUS;
@@ -1215,7 +1147,7 @@ public struct SolarSystem {
 //        long double     ice        = (planet->ice_cover * 100.0);
 //        long double     gravity    = planet->surf_grav;
 //        unsigned int breathe    = breathability (planet);
-//    
+//
 //        if ((gravity     >= .8) &&
 //            (gravity     <= 1.2) &&
 //            (rel_temp     >= -2.0) &&
@@ -1278,29 +1210,29 @@ public struct SolarSystem {
 //         planet = planet->next_planet, planet_no++)
 //    {
 //        char    planet_id[80];
-//        
+//
 //        sprintf(planet_id,
 //                "%s (-s%ld -%c%d) %d",
 //                system_name, flag_seed, flag_char, sys_no, planet_no);
-//                
+//
 //        generate_planet(planet, planet_no,
 //                        sun, random_tilt,
 //                        planet_id,
 //                        do_gases, do_moons, FALSE);
-//        
+//
 //        /*
 //         *    Now we're ready to test for habitable planets,
 //         *    so we can count and log them and such
 //         */
-//         
+//
 //         check_planet(planet, planet_id, FALSE);
-//                        
+//
 //        for (moon=planet->first_moon, moons=1;
 //            moon != NULL;
 //            moon=moon->next_planet, moons++)
 //        {
 //            char    moon_id[80];
-//            
+//
 //            sprintf(moon_id,
 //                    "%s.%d",
 //                    planet_id, moons);
@@ -1345,7 +1277,7 @@ public struct SolarSystem {
 //             char *            url_path_arg,
 //             char *            filename_arg,
 //             char *            sys_name_arg,
-//             
+//
 //             FILE *            sgOut,
 //             FILE *            sgErr,
 //             char *            prognam,
@@ -1355,9 +1287,9 @@ public struct SolarSystem {
 //             int            incr_arg,
 //             catalog *        cat_arg,
 //             int            sys_no_arg,
-//             
+//
 //             long double    ratio_arg,
-//             
+//
 //             int            flags_arg,
 //             int            out_format,
 //             int            graphic_format
@@ -1369,7 +1301,7 @@ public struct SolarSystem {
 //    long double        max_mass             = 2.35;
 //    int                system_count        = 1;
 //    int                seed_increment        = 1;
-//    
+//
 //    char            default_path[]        = SUBDIR;            /* OS specific */
 //    char             default_url_path[]    = "../";
 //    char             *url_path            = default_url_path;
@@ -1407,16 +1339,16 @@ public struct SolarSystem {
 //
 //    if (sgErr == NULL)
 //        sgErr = stderr;
-//    
+//
 //    if ((prognam == NULL) || (prognam[0] == '\0'))
 //        prognam = "StarGen";
 //
 //    if ((path == NULL) || (path[0] == '\0'))
 //        path         = default_path;
-//    
+//
 //    if (graphic_format == 0)
 //        graphic_format = gfGIF;
-//    
+//
 //    if ((url_path_arg != NULL) && (url_path_arg[0] != '\0'))
 //        url_path    = url_path_arg;
 //
@@ -1424,31 +1356,31 @@ public struct SolarSystem {
 //        size_t    l = strlen(DIRSEP);
 //        char*    s = path;
 //        char*    e = s + strlen(s) - l;
-//        
+//
 //        if (e < s || (strcmp(e, DIRSEP) != 0))
 //        {
 //            fprintf (stderr, "Invalid path: '%s'\n", path);
 //            return 1;
 //        }
-//    
+//
 //        for (;;)
 //        {
 //            char*    p = strstr(s, DIRSEP);
-//            
+//
 //            if (p >= e)
 //                break;
-//            
+//
 //            s = p + l;
 //        }
-//                
+//
 //        strncpy (subdir, s, strlen(s) - l);
 //        strncat (subdir, "/", 80-strlen(subdir));
 //    }
-//    
+//
 //    for (index = 0; index < max_gas; index++)
 //        if (gases[index].max_ipp == 0.0)
 //            gases[index].max_ipp = INCREDIBLY_LARGE_NUMBER;
-//            
+//
 //    qsort(gases, (sizeof(gases) / sizeof(ChemTable)) - 1,
 //                  sizeof(*gases),
 //                  diminishing_abundance);
@@ -1458,16 +1390,16 @@ public struct SolarSystem {
 //        case aListGases:
 //        {
 //            long double    total = 0.0;
-//            
+//
 //            if (sgOut == NULL)
 //                sgOut = stdout;
-//            
+//
 //            for (index = 0; index < max_gas; index++)
 //            {
 //                if (gases[index].weight >= AN_N
 //                 && gases[index].max_ipp < 1E9)
 //                    total += gases[index].max_ipp;
-//                
+//
 //                fprintf (sgOut, " %2d: %4s - %-13s %3.0f mb - %5.0Lf mb\n",
 //                        index,
 //                        gases[index].symbol,
@@ -1477,13 +1409,13 @@ public struct SolarSystem {
 //            }
 //            fprintf (sgOut, "Total Max ipp: %5.0Lf\n", total);
 //            fprintf (sgOut, "Max pressure: %5.0f atm\n", MAX_HABITABLE_PRESSURE);
-//            
+//
 //            return (1);
 //        }
 //        case aListCatalog:
 //            if (sgOut == NULL)
 //                sgOut = stdout;
-//            
+//
 //            for (index = 0; index < catalog_count; index++)
 //            {
 //                fprintf (sgOut, "%3d: %-30.30s M: %4.2LG L: %4.2LG\n",
@@ -1494,11 +1426,11 @@ public struct SolarSystem {
 //            }
 //
 //            return (1);
-//        
+//
 //        case aListCatalogAsHTML:
 //            if (sgOut == NULL)
 //                sgOut = stdout;
-//            
+//
 //            for (index = 0; index < catalog_count; index++)
 //            {
 //                fprintf (sgOut, "\t<option value=%d>%s</option>\n",
@@ -1507,14 +1439,14 @@ public struct SolarSystem {
 //            }
 //
 //            return (1);
-//        
+//
 //        case aSizeCheck:
 //        {
 //            long double    temp = est_temp(1.0, 1.0,  EARTH_ALBEDO);
-//            
+//
 //            if (sgOut == NULL)
 //                sgOut = stdout;
-//            
+//
 //            fprintf (sgOut, "Size of float: %ld\n",
 //                     sizeof(float));
 //            fprintf (sgOut, "Size of doubles: %ld\n",
@@ -1528,11 +1460,11 @@ public struct SolarSystem {
 //
 //            return (1);
 //        }
-//        
+//
 //        case aListVerbosity:
 //            if (sgOut == NULL)
 //                sgOut = stdout;
-//            
+//
 //            fprintf (sgOut,
 //                    "Verbosity flags are hexidecimal numbers:\n"
 //                    "\t0001\tEarthlike count\n"
@@ -1559,7 +1491,7 @@ public struct SolarSystem {
 //                    );
 //            return (1);
 //        case aGenerate:
-//        
+//
 //            break;
 //    }
 //
@@ -1567,22 +1499,22 @@ public struct SolarSystem {
 //    sun.mass         = mass_arg;
 //    system_count    = count_arg;
 //    seed_increment    = incr_arg;
-//    
+//
 //    if (ratio_arg > 0.0)
 //        dust_density_coeff *= ratio_arg;
-//    
+//
 //    if (reuse_solar_system)
 //    {
 //        system_count = 1 + (int) ((max_mass - min_mass) / inc_mass);
-//        
+//
 //        earth.mass = (EM(min_mass));
-//        
+//
 //        sun.luminosity     = 1.0;
 //        sun.mass         = 1.0;
 //        sun.life         = 1.0E10;
 //        sun.age         = 5.0E9;
 //        sun.r_ecosphere    = 1.0;
-//        
+//
 //        use_solar_system = TRUE;
 //    }
 //    else if (do_catalog)
@@ -1590,13 +1522,13 @@ public struct SolarSystem {
 //        system_count = catalog_count + ((system_count - 1) * (catalog_count - 1));
 //        use_solar_system = TRUE;
 //    }
-//    
+//
 //    if ((system_count > 1)
 //     && !(out_format == ffCSVdl))
 //    {
 //        if (strlen(filename_arg) > 0)
 //            strcpy(thumbnail_file, filename_arg);
-//        
+//
 //        thumbnails = open_html_file ("Thumbnails", flag_seed, path, url_path, thumbnail_file, ".html",
 //                                     prognam, sgOut);
 //        if (thumbnails == NULL)
@@ -1606,7 +1538,7 @@ public struct SolarSystem {
 //            exit(0);
 //        }
 //    }
-//    
+//
 //    if ((out_format == ffCSV) || (out_format == ffCSVdl))
 //    {
 //        char    csv_url[300]    = "";
@@ -1614,10 +1546,10 @@ public struct SolarSystem {
 //        if ((sgOut != NULL))
 //        {
 //            char sys_no[10] = "x";
-//            
+//
 //            if (!do_catalog)
 //                sprintf(&sys_no[0], "%d", sys_no_arg-1);
-//            
+//
 //            if (out_format == ffCSVdl)
 //                csv_file = sgOut;
 //
@@ -1642,20 +1574,20 @@ public struct SolarSystem {
 //        else
 //        {
 //            char cleaned_arg[300] = "StarGen";
-//            
+//
 //            if (strlen(filename_arg) > 0)
 //            {
 //                char *ptr;
-//                
+//
 //                strcpy (cleaned_arg, filename_arg);
-//                
+//
 //                ptr = strrchr(cleaned_arg, '.');
-//                
+//
 //                if ((ptr != NULL)
 //                 && (strcmp(ptr, ".html") == 0))
 //                    *ptr = '\0';
 //            }
-//            
+//
 //            if (thumbnails != NULL)
 //            {
 //                sprintf (&csv_file_name[0],
@@ -1686,11 +1618,11 @@ public struct SolarSystem {
 //                path, csv_file_name);
 //            exit(0);
 //        }
-//    
+//
 //        if (thumbnails != NULL)
 //            csv_thumbnails(thumbnails, url_path, subdir, csv_file_name, csv_url);
 //    }
-//    
+//
 //    for (index = 0; index < system_count; index++)
 //    {
 //        char            system_name[80];
@@ -1723,16 +1655,16 @@ public struct SolarSystem {
 //            if (use_known_planets || no_generate)
 //            {
 //                seed_planets = (*(cat_arg->stars))[sys_no].known_planets;
-//                
+//
 //                use_seed_system    = no_generate;
 //            }
 //            else
 //            {
 //                seed_planets = NULL;
 //            }
-//            
+//
 //            in_celestia = (*(cat_arg->stars))[sys_no].in_celestia;
-//            
+//
 //            sun.mass = (*(cat_arg->stars))[sys_no].mass;
 //            sun.luminosity = (*(cat_arg->stars))[sys_no].luminosity;
 //
@@ -1740,16 +1672,16 @@ public struct SolarSystem {
 //            {
 //                sprintf (&system_name[0], "%s", (*(cat_arg->stars))[sys_no].name);
 //                sprintf (&designation[0], "%s", (*(cat_arg->stars))[sys_no].desig);
-//                
+//
 //            }
 //            else
 //            {
 //                sprintf (&system_name[0], "%s", sys_name_arg);
 //                sprintf (&designation[0], "%s", sys_name_arg);
 //            }
-//            
+//
 //            sprintf (&file_name[0], "%s-%ld", designation, flag_seed);
-//            
+//
 //            if ((*(cat_arg->stars))[sys_no].m2 > .001)
 //            {
 //                /*
@@ -1762,7 +1694,7 @@ public struct SolarSystem {
 //                long double mu = m2 / (m1 + m2);
 //                long double e = (*(cat_arg->stars))[sys_no].e;
 //                long double a = (*(cat_arg->stars))[sys_no].a;
-//                
+//
 //                outer_limit = (0.464 + (-0.380 * mu) + (-0.631 * e) +
 //                               (0.586 * mu * e) + (0.150 * pow2(e)) +
 //                               (-0.198 * mu * pow2(e))) * a;
@@ -1790,13 +1722,13 @@ public struct SolarSystem {
 //                sprintf (&system_name[0], "%s %ld-%LG", prognam, flag_seed, sun.mass);
 //                sprintf (&designation[0], "%s", prognam);
 //            }
-//            
+//
 //            sprintf (&file_name[0], "%s-%ld-%LG", designation, flag_seed, sun.mass);
 //            outer_limit = 0;
 //        }
-//        
+//
 //        sun.name = system_name;
-//        
+//
 //        if ((flag_verbose & 0x0400) && (outer_limit > 0.0))
 //        {
 //            fprintf (sgErr, "%s, Outer Limit: %LG\n", system_name, outer_limit);
@@ -1807,10 +1739,10 @@ public struct SolarSystem {
 //
 //        while ((cp = strchr(file_name,' ')) != 0)
 //            *cp = '-';
-//        
+//
 //        while ((cp = strchr(file_name,'\'')) != 0)
 //            *cp = '-';
-//        
+//
 //        earthlike             = 0;
 //        habitable             = 0;
 //        habitable_jovians     = 0;
@@ -1835,13 +1767,13 @@ public struct SolarSystem {
 //                    seed_planets = NULL;
 //            }
 //        }
-//        
+//
 //        {
 //            int    i;
-//            
+//
 //            for (i = 0; i < 12; i++)
 //                type_counts[i] = 0;
-//            
+//
 //            type_count = 0;
 //        }
 //
@@ -1860,7 +1792,7 @@ public struct SolarSystem {
 //            int             counter;
 //            int                wt_type_count = type_count;
 //            int                norm_type_count = 0;
-//        
+//
 //            if (type_counts[3]  > 0)    wt_type_count += 20;    // Terrestrial
 //            if (type_counts[8]  > 0)    wt_type_count += 18;    // Water
 //            if (type_counts[2]  > 0)    wt_type_count += 16;    // Venusian
@@ -1873,18 +1805,18 @@ public struct SolarSystem {
 //            if (type_counts[1]  > 0)    wt_type_count += 3;        // Rock
 //            if (type_counts[6]  > 0)    wt_type_count += 2;        // Jovian
 //            if (type_counts[0]  > 0)    wt_type_count += 1;        // Unknown
-//        
+//
 //            for (planet=innermost_planet, counter=0;
 //                planet != NULL;
 //                planet=planet->next_planet, counter++)
 //                ;
-//            
+//
 //            norm_type_count = wt_type_count - (counter - type_count);
-//            
+//
 //            if (max_type_count < norm_type_count)
 //            {
 //                max_type_count = norm_type_count;
-//        
+//
 //                if (flag_verbose & 0x10000)
 //                    fprintf (sgErr, "System %ld - %s (-s%ld -%c%d) has %d types out of %d planets. [%d]\n",
 //                            flag_seed,
@@ -1910,7 +1842,7 @@ public struct SolarSystem {
 //        {
 //            char    system_url[300] = "";
 //            char    svg_url[300]    = "";
-//            
+//
 //            if (sgOut == NULL)
 //            {
 //                sprintf (system_url,
@@ -1960,13 +1892,13 @@ public struct SolarSystem {
 //                case ffSVG:
 //                    create_svg_file (sgOut, innermost_planet, path, file_name, ".svg", prognam);
 //                break;
-//                
+//
 //                case ffHTML:
 //                    if ((graphic_format == gfSVG) && (sgOut == NULL))
 //                    {
 //                        create_svg_file (NULL, innermost_planet, path, file_name, ".svg", prognam);
 //                    }
-//                    
+//
 //                    if (thumbnails != NULL)
 //                        html_thumbnails(innermost_planet, thumbnails,
 //                                        system_name,
@@ -1981,7 +1913,7 @@ public struct SolarSystem {
 //                        else
 //                            html_file = open_html_file (system_name, flag_seed, path, url_path, file_name, ".html",
 //                                                        prognam, NULL);
-//                        
+//
 //                        if (NULL != html_file)
 //                        {
 //                            html_thumbnails(innermost_planet, html_file,
@@ -1999,17 +1931,17 @@ public struct SolarSystem {
 //                        }
 //                    }
 //                break;
-//                
+//
 //                case ffTEXT:
 //                    text_describe_system(innermost_planet, do_gases, flag_seed);
 //                break;
-//                
+//
 //                case ffCSV:
 //                case ffCSVdl:
 //                    if (csv_file != NULL)
 //                        csv_describe_system(csv_file, innermost_planet, do_gases, flag_seed);
 //                break;
-//                
+//
 //                case ffCELESTIA:
 //                    if (in_celestia != 0)
 //                    {
@@ -2034,12 +1966,12 @@ public struct SolarSystem {
 //
 //        if (! ((use_solar_system) && (index == 0)))
 //            flag_seed += seed_increment;
-//            
+//
 //        if (reuse_solar_system)
 //            earth.mass += (EM(inc_mass));
-//        
+//
 //        free_atmosphere (innermost_planet);
-//        
+//
 //        // Free the dust and planets created by accrete:
 //        free_generations ();
 //
@@ -2048,7 +1980,7 @@ public struct SolarSystem {
 //        dumasDumpHoard ();
 //#endif
 //    }
-//    
+//
 //    if ((flag_verbose & 0x0001) || (flag_verbose & 0x0002))
 //    {
 //        fprintf (sgErr, "Earthlike planets: %d\n", total_earthlike);
@@ -2074,7 +2006,7 @@ public struct SolarSystem {
 //        fprintf (sgErr, "Max moon mass: %4.2Lf\n",
 //                 max_moon_mass * SUN_MASS_IN_EARTH_MASSES);
 //    }
-//        
+//
 //    if (system_count > 1)
 //    {
 //        if (do_gases)
@@ -2250,7 +2182,7 @@ public struct SolarSystem {
 //    int            flags_arg                = 0;
 //    int            out_format                = ffHTML;
 //    int            graphic_format            = gfGIF;
-//    
+//
 //    char         *c                        = NULL;
 //    int          skip                    = FALSE;
 //    int          index                    = 0;
@@ -2260,18 +2192,18 @@ public struct SolarSystem {
 //    _fcreator     = 'R*ch';
 //    argc = ccommand (&argv);
 //#endif
-//    
+//
 //    prognam = argv[0];
-//    
+//
 //    if ((c = strrchr(prognam, DIRSEP[0])) != NULL)
 //        prognam = c + 1;
-//    
+//
 //    if (argc <= 1)
 //    {
 //        usage(prognam);
 //        return(1);
 //    }
-//    
+//
 //    while (--argc > 0 && (*++argv)[0] == '-') {
 //        for (c = argv[0]+1, skip=FALSE;
 //             (*c != '\0') && (!(skip));
@@ -2288,10 +2220,10 @@ public struct SolarSystem {
 //            case 'm':    // set mass of star
 //            {
 //                double    m;    // gnu C doesn't like to scanf long doubles
-//                
+//
 //                sscanf (++c, "%lf", &m);
 //                mass_arg = m;
-//                
+//
 //                skip = TRUE;
 //                break;
 //            }
@@ -2383,7 +2315,7 @@ public struct SolarSystem {
 //                        --argc;
 //                        c = (++argv)[0];
 //                    }
-//                
+//
 //                if (*c != '\0')
 //                    strcpy(filename_arg, c);
 //
@@ -2418,13 +2350,13 @@ public struct SolarSystem {
 //                        --argc;
 //                        c = (++argv)[0];
 //                    }
-//                
+//
 //                if (*c != '\0')
 //                    strcpy(path, c);
-//                
+//
 //                if (strcmp(path + strlen(path) - strlen(DIRSEP), DIRSEP) != 0)
 //                    strncat (path, DIRSEP, 80-strlen(path));
-//                    
+//
 //                skip = TRUE;
 //                break;
 //            case 'u':
@@ -2434,13 +2366,13 @@ public struct SolarSystem {
 //                        --argc;
 //                        c = (++argv)[0];
 //                    }
-//                
+//
 //                if (*c != '\0')
 //                    strcpy(url_path_arg, c);
-//                
+//
 //                if (strcmp(url_path_arg + strlen(url_path_arg) - strlen("/"), "/") != 0)
 //                    strncat (url_path_arg, "/", 80-strlen(url_path_arg));
-//                
+//
 //                skip = TRUE;
 //                break;
 //            case 'g':
@@ -2487,15 +2419,15 @@ public struct SolarSystem {
 //            case 'A':
 //            {
 //                double ratio;
-//                
+//
 //                sscanf (++c, "%lf", &ratio);
 //                skip = TRUE;
-//                
+//
 //                if (ratio > 0.0)
 //                    ratio_arg = ratio;
 //                break;
 //            }
-//            
+//
 //            default:
 //                fprintf (stderr, "Unknown option: %s\n", c);
 //            case '?':
@@ -2504,24 +2436,24 @@ public struct SolarSystem {
 //                return (1);
 //            }
 //    }
-//    
+//
 //    for (index = 0; index < argc; index++) {
 //        if ((strlen(argv[index]) + strlen(arg_name)) < sizeof(arg_name))
 //        {
 //            if (strlen(arg_name))
 //                strcpy(arg_name+strlen(arg_name), " ");
-//            
+//
 //            strcpy(arg_name+strlen(arg_name), argv[index]);
 //        }
 //    }
-//    
+//
 //    stargen (action,
 //             flag_char,
 //             path,
 //             url_path_arg,
 //             filename_arg,
 //             arg_name,
-//             
+//
 //             use_stdout ? stdout : NULL,
 //             stderr,
 //             prognam,
@@ -2531,9 +2463,9 @@ public struct SolarSystem {
 //             increment_arg,
 //             catalog,
 //             sys_no_arg,
-//             
+//
 //             ratio_arg,
-//             
+//
 //             flags_arg,
 //             out_format,
 //             graphic_format

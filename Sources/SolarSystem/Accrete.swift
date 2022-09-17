@@ -14,37 +14,17 @@ import Foundation
 // NOTE(heckj): throughout this ported code, 'a' represents the AU distance from the core of the disk,
 // 'mass' is the accumulated mass at that AU, and 'e' represents the eccentricity of the mass being calculated.
 
-// Original C functions in header:
-//
-//void set_initial_conditions(long double, long double );
-//long double stellar_dust_limit(long double);
-//long double nearest_planet(long double);
-//long double farthest_planet(long double);
-//long double inner_effect_limit(long double, long double, long double );
-//long double outer_effect_limit(long double, long double, long double );
-//int dust_available(long double, long double );
-//void update_dust_lanes(long double, long double, long double, long double, long double, long double );
-//long double collect_dust(long double, long double *, long double *, long double, long double, long double, dust_pointer);
-//long double critical_limit(long double, long double, long double );
-//void accrete_dust(long double *, long double *, long double *, long double, long double, long double, long double, long double );
-//void coalesce_planetesimals(long double, long double, long double, long double, long double, long double, long double, long double, long double, int );
-//planet_pointer dist_planetary_masses(long double, long double, long double, long double, long double, long double, planet_pointer, int);
-//void free_dust (dust_pointer);
-//void free_planet (planet_pointer);
-//void free_atmosphere(planet_pointer);
-//void free_generations();
-
-//#include    <stdio.h>
-//#include    <stdlib.h>
-//#include    <math.h>
-//#include    "const.h"
-//#include    "structs.h"
-//#include     "accrete.h"
-//#include     "stargen.h"
-
+// NOTE(heckj): Porting Notes:
 // Accrete was a variety of free functions that manipulated a set of global variables.
 // I'm encapsulating those into a struct, which seems a bit awkward, but better than slapping
 // around global variables and pointers to me.
+// To support the linked-list data structures, I'm using reference types (classes) and passing them
+// around as need be in place of passing "pointers" in the original C code. This is NOT the most efficient
+// mechanism for Swift, and quite a lot could be refactored - I suspect most of what's happening in linked
+// lists could be replaced with Array structures and updates, especially capturing the the dust lanes and
+// collecting dust from them. The planet structure that accumulates ends up being a graph rather than a list
+// when you include `moons`, so that may well best sit as a linked-list structure.
+
 struct AccretionDisk {
     var dust_left: Bool = true
     var r_inner: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
@@ -651,8 +631,8 @@ struct AccretionDisk {
         var next_planet: Planet? = nil
         var prev_planet: Planet? = nil
         var finished: Bool = false
-        let dist1: Double
-        let dist2: Double
+        var dist1: Double
+        var dist2: Double
         var temp: Double = 0
         // First we try to find an existing planet with an over-lapping orbit.
         
@@ -712,29 +692,7 @@ struct AccretionDisk {
                                 mass: mass,
                                 gas_giant: false,
                                 dust_mass: dust_mass, gas_mass: gas_mass,
-                                moon_a: 0, moon_e: 0,
-                                core_radius: 0, radius: 0,
-                                orbit_zone: 0,
-                                density: 0,
-                                orb_period: 0,
-                                day: 0,
-                                resonant_period: false,
-                                esc_velocity: 0,
-                                surf_accel: 0,
-                                surf_grav: 0,
-                                rms_velocity: 0,
-                                molec_weight: 0,
-                                volatile_gas_inventory: 0,
-                                surf_pressure: 0,
-                                greenhouse_effect: false,
-                                boil_point: 0,
-                                albedo: 0, exospheric_temp: 0, estimated_temp: 0, estimated_terr_temp: 0,
-                                surf_temp: 0,
-                                greenhs_rise: 0,
-                                high_temp: 0, low_temp: 0, max_temp: 0, min_temp: 0,
-                                hydrosphere: 0, cloud_cover: 0, ice_cover: 0, // default to 0
-                                sun: nil, gases: 0, atmosphere: nil, planet_type: .unknown,
-                                minor_moons: 0, first_moon: nil, next_planet: nil)
+                                next_planet: nil)
                             if (the_moon.dust_mass + the_moon.gas_mass) > this_planet.dust_mass + this_planet.gas_mass {
                                 // if the moon has more mass than the planet, switch them around
                                 
@@ -1072,9 +1030,9 @@ struct AccretionDisk {
         var mass: Double = PROTOPLANET_MASS // units of Solar Mass
         var dust_mass: Double = 0
         var gas_mass: Double = 0
-        var crit_mass: Double
-        var planet_inner_bound: Double
-        var planet_outer_bound: Double
+        var crit_mass: Double = 0
+        var planet_inner_bound: Double = 0
+        var planet_outer_bound: Double = 0
         var seeds: Planet? = seed_system
         
         set_initial_conditions(inner_limit_of_dust: inner_dust, outer_limit_of_dust: outer_dust)

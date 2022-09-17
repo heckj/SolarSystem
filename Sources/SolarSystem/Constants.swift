@@ -84,7 +84,7 @@ let DUST_DENSITY_COEFF       = 2.0E-3        /* A in Dole's paper        */
 let ALPHA                    = 5.0           /* Used in density calcs    */
 let N                        = 3.0            /* Used in density calcs    */
 let J                        = 1.46E-19        /* Used in day-length calcs (cm2/sec2 g) */
-let INCREDIBLY_LARGE_NUMBER = Double.max
+let INCREDIBLY_LARGE_NUMBER = Double.greatestFiniteMagnitude
 
 /*    Now for a few molecular weights (used for RMS velocity calcs):       */
 /*    This table is from Dole's book "Habitable Planets for Man", p. 38  */
