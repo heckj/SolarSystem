@@ -136,10 +136,10 @@ final class Planet: Equatable {
     
     var planet_type: PlanetType = .unknown
     var minor_moons: Int = 0
-    var first_moon: Planet? = nil
+    var first_moon: Planet?
     var next_planet: Planet?
     
-    init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, next_planet: Planet?) {
+    init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, first_moon: Planet? = nil, next_planet: Planet?) {
         self.planet_no = planet_no
         self.a = a
         self.e = e
@@ -148,6 +148,7 @@ final class Planet: Equatable {
         self.gas_giant = gas_giant
         self.dust_mass = dust_mass
         self.gas_mass = gas_mass
+        self.first_moon = first_moon
         self.next_planet = next_planet
     }
 }

@@ -202,51 +202,30 @@ let io = Planet(planet_no: 1, a: 2.82e-3, e: 0.0006, axial_tilt: 0, mass: EM(1.2
 
 // Saturn Moons
 
-//planets iapetus  ={6,2.38e-2,0.029, 0   , EM(8.4e-4 ),FALSE,EM(8.4e-4 ), 0, ZEROES,0,NULL, NULL};
-//planets hyperion ={5,9.89e-3,0.110, 0   , EM(1.82e-5),FALSE,EM(1.82e-5), 0, ZEROES,0,NULL, &iapetus};
-//planets titan    ={4,8.17e-3,0.0289,0   , EM(2.3e-2 ),FALSE,EM(2.3e-2 ), 0, ZEROES,0,NULL, &hyperion};
-//planets rhea     ={3,3.52e-3,0.0009,0   , EM(3.85e-4),FALSE,EM(3.85e-4), 0, ZEROES,0,NULL, &titan};
-//planets dione    ={2,2.52e-3,0.0021,0   , EM(1.74e-4),FALSE,EM(1.74e-4), 0, ZEROES,0,NULL, &rhea};
-//planets tethys   ={1,1.97e-3,0.000, 0   , EM(1.09e-4),FALSE,EM(1.09e-4), 0, ZEROES,0,NULL, &dione};
+let iapetus = Planet(planet_no: 6, a: 2.38e-2, e: 0.029, axial_tilt: 0, mass: EM(8.4e-4), gas_giant: false, dust_mass: EM(8.4e-4), gas_mass: 0, next_planet: nil)
+let hyperion = Planet(planet_no: 5, a: 9.89e-3, e: 0.110, axial_tilt: 0, mass: EM(1.82e-5), gas_giant: false, dust_mass: EM(1.82e-5), gas_mass: 0, next_planet: iapetus)
+let titan = Planet(planet_no: 4, a: 8.17e-3, e: 0.0289, axial_tilt: 0, mass: EM(2.3e-2), gas_giant: false, dust_mass: EM(2.3e-2), gas_mass: 0, next_planet: hyperion)
+let rhea = Planet(planet_no: 3, a: 3.52e-3, e: 0.0009, axial_tilt: 0, mass: EM(3.85e-4), gas_giant: false, dust_mass: EM(3.85e-4), gas_mass: 0, next_planet: titan)
+let dione = Planet(planet_no: 2, a: 2.52e-3, e: 0.0021, axial_tilt: 0, mass: EM(1.74e-4), gas_giant: false, dust_mass: EM(1.74e-4), gas_mass: 0, next_planet: rhea)
+let tethys = Planet(planet_no: 1, a: 1.97e-3, e: 0, axial_tilt: 0, mass: EM(1.09e-4), gas_giant: false, dust_mass: EM(1.09e-4), gas_mass: 0, next_planet: dione)
 
-//planets triton   ={1,2.36e-3,0.000, 0   , EM(2.31e-2),FALSE,EM(2.31e-2), 0, ZEROES,0,NULL, NULL};
-//planets charon   ={1,19571/
-//                   KM_PER_AU,0.000, 0   , EM(2.54e-4),FALSE,EM(2.54e-4), 0, ZEROES,0,NULL, NULL};
-//
-//planets xena   ={11,67.6681,0.44177,0   , EM(.0025),FALSE, EM(.0025),    0, ZEROES,0,NULL,    NULL};
-//planets pluto  ={10,39.529,0.248,122.5, EM(0.002),  FALSE, EM(0.002),    0, ZEROES,0,&charon, &xena};
-//planets neptune={ 9,30.061,0.010, 29.6, EM(17.14),  TRUE,  0,   EM(17.14),  ZEROES,0,&triton, &pluto};
-//planets uranus ={ 8,19.191,0.046, 97.9, EM(14.530), TRUE,  0,   EM(14.530), ZEROES,0,NULL,    &neptune};
-//planets saturn ={ 7,9.539, 0.056, 26.7, EM(95.18),  TRUE,  0,   EM(95.18),  ZEROES,0,&tethys, &uranus};
-//planets jupiter={ 6,5.203, 0.048,  3.1, EM(317.9),  TRUE,  0,   EM(317.9),  ZEROES,0,&io,     &saturn};
-//planets ceres  ={ 5,2.766, 0.080,  0,   9.5e20 /
-//                           SOLAR_MASS_IN_KILOGRAMS, FALSE, 9.5e20 /
-//                                                SOLAR_MASS_IN_KILOGRAMS, 0, ZEROES,0,NULL,    &jupiter};
-//planets mars   ={ 4,1.524, 0.093, 25.2, EM(0.1074), FALSE, EM(0.1074),   0, ZEROES,0,NULL,    &ceres};
-//planets earth  ={ 3,1.000, 0.017, 23.5, EM(1.00),   FALSE, EM(1.00),     0, ZEROES,0,&luna,   &mars};
-//planets venus  ={ 2,0.723, 0.007,177.3, EM(0.815),  FALSE, EM(0.815),    0, ZEROES,0,NULL,    &earth};
-//planets mercury={ 1,0.387, 0.206,  2,   EM(0.055),  FALSE, EM(0.055),    0, ZEROES,0,NULL,    &venus};
+let triton = Planet(planet_no: 1, a: 2.36e-3, e: 0, axial_tilt: 0, mass: EM(2.31e-2), gas_giant: false, dust_mass: EM(2.31e-2), gas_mass: 0, next_planet: nil)
+let charon = Planet(planet_no: 1, a: 19571/KM_PER_AU, e: 0, axial_tilt: 0, mass: EM(2.54e-4), gas_giant: false, dust_mass: EM(2.54e-4), gas_mass: 0, next_planet: nil)
+
+let xena = Planet(planet_no: 11, a: 67.6681, e: 0.44177, axial_tilt: 0, mass: EM(.0025), gas_giant: false, dust_mass: EM(.0025), gas_mass: 0, next_planet: nil)
+let pluto = Planet(planet_no: 10, a: 39.529, e: 0.248, axial_tilt: 122.5, mass: EM(0.002), gas_giant: false, dust_mass: EM(0.002), gas_mass: 0, next_planet: xena)
+let neptune = Planet(planet_no: 9, a: 30.061, e: 0.010, axial_tilt: 29.6, mass: EM(17.14), gas_giant: true, dust_mass: 0, gas_mass: EM(17.14), first_moon: triton, next_planet: pluto)
+let uranus = Planet(planet_no: 8, a: 19.191, e: 0.046, axial_tilt: 97.9, mass: EM(14.530), gas_giant: true, dust_mass: 0, gas_mass: EM(14.530), next_planet: neptune)
+let saturn = Planet(planet_no: 7, a: 9.539, e: 0.056, axial_tilt: 26.7, mass: EM(95.18), gas_giant: true, dust_mass: 0, gas_mass: EM(95.18), first_moon: tethys, next_planet: saturn)
+let jupiter = Planet(planet_no: 6, a: 5.203, e: 0.048, axial_tilt: 3.1, mass: EM(317.9), gas_giant: true, dust_mass: 0, gas_mass: EM(317.9), first_moon: io, next_planet: saturn)
+let ceres = Planet(planet_no: 5, a: 2.766, e: 0.08, axial_tilt: 0, mass: 9.5e20/SOLAR_MASS_IN_KILOGRAMS, gas_giant: false, dust_mass: 9.5e20/SOLAR_MASS_IN_KILOGRAMS, gas_mass: 0, next_planet: jupiter)
+let mars = Planet(planet_no: 4, a: 1.524, e: 0.093, axial_tilt: 25.2, mass: EM(0.1074), gas_giant: false, dust_mass: EM(0.1074), gas_mass: 0, next_planet: ceres)
+let earth = Planet(planet_no: 3, a: 1.0, e: 0.017, axial_tilt: 23.5, mass: EM(1.0), gas_giant: false, dust_mass: EM(1.0), gas_mass: 0, first_moon: luna, next_planet: mars)
+let venus = Planet(planet_no: 2, a: 0.723, e: 0.007, axial_tilt: 177.3, mass: EM(0.815), gas_giant: false, dust_mass: EM(0.815), gas_mass: 0, next_planet: earth)
+let mercury = Planet(planet_no: 1, a: 0.387, e: 0.206, axial_tilt: 2, mass: EM(0.055), gas_giant: false, dust_mass: EM(0.055), gas_mass: 0, next_planet: venus)
 //planet_pointer solar_system = &mercury;
-//
-///* planets ceres  ={ 5,2.767, 0.079,  0, EM(0.000134), FALSE, EM(0.000134), 0, ZEROES,0,NULL , &jupiter}; */
-//
-///* planets    titan2 ={ 7,9.539, 0.056, 26.7 , EM(0.02259), FALSE, EM(0.02259),EM(.001), ZEROES,0,NULL, &uranus}; */
-//
-///* Seeds for accreting the solar system */
-//            /*     No Orbit  Eccen... */
-//planets pluto1  ={10,39.529,0.248, 0, 0, 0, 0, 0, ZEROES,0,NULL, NULL};
-//planets pluto2  ={10,39.529,0.15,  0, 0, 0, 0, 0, ZEROES,0,NULL, NULL};    // The real eccentricity
-//planets mars1   ={ 4,1.524, 0.093, 0, 0, 0, 0, 0, ZEROES,0,NULL, &pluto2};    // collides Pluto+Neptune
-//planets ceres1  ={ 5,2.767, 0.079, 0, 0, 0, 0, 0, ZEROES,0,NULL, &mars1};
-//planets saturn1 ={ 7,9.539, 0.056, 0, 0, 0, 0, 0, ZEROES,0,NULL, &ceres1};
-//planets uranus1 ={ 8,19.191,0.046, 0, 0, 0, 0, 0, ZEROES,0,NULL, &saturn1};
-//planets neptune1={ 9,30.061,0.010, 0, 0, 0, 0, 0, ZEROES,0,NULL, &uranus1};
-//planets jupiter1={ 6,5.203, 0.048, 0, 0, 0, 0, 0, ZEROES,0,NULL, &neptune1};
-//planets mercury1={ 1,0.387, 0.206, 0, 0, 0, 0, 0, ZEROES,0,NULL, &jupiter1};
-//planets earth1  ={ 3,1.000, 0.017, 0, 0, 0, 0, 0, ZEROES,0,NULL, &mercury1};
-//planets venus1  ={ 2,0.723, 0.007, 0, 0, 0, 0, 0, ZEROES,0,NULL, &earth1};
-//planet_pointer solar_system1 = &venus1;
-//
+
+
 //planets eriEpsI    ={ 1,3.3,    0.608,     0, 0, 0, 0, 0, ZEROES,0,NULL, NULL};
 //planets UMa47II    ={ 2,3.73,    0,         0, 0, 0, 0, 0, ZEROES,0,NULL, NULL};
 //planets UMa47I    ={ 1,2.11,     0.096,     0, 0, 0, 0, 0, ZEROES,0,NULL, &UMa47II};
