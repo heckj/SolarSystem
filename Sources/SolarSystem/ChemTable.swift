@@ -1,6 +1,6 @@
 //
 //  ChamTable.swift
-//  
+//
 
 // From Keris
 
@@ -17,7 +17,7 @@ final class ChemTableEntry {
     var abunds: Double
     var reactivity: Double
     var max_ipp: Double // Max inspired partial pressure im millibars
-    
+
     //   An   sym   HTML symbol                      name                 Aw      melt    boil    dens       ABUNDe       ABUNDs         Rea    Max inspired pp
     init(num: Int, symbol: String, html_symbol: String, name: String, weight: Double, melt: Double, boil: Double, density: Double, abunde: Double, abunds: Double, reactivity: Double, max_ipp: Double) {
         self.num = num
@@ -41,7 +41,7 @@ let gases: [ChemTableEntry] = [
                    abunde: 0.00125893, abunds: 27925.4, reactivity: 1, max_ipp: 0.0),
     ChemTableEntry(num: AN_HE, symbol: "He", html_symbol: "He", name: "Helium",
                    weight: 4.0026, melt: 3.46, boil: 4.20, density: 0.0001787,
-                   abunde:  7.94328e-09, abunds: 2722.7, reactivity: 0, max_ipp: MAX_HE_IPP),
+                   abunde: 7.94328e-09, abunds: 2722.7, reactivity: 0, max_ipp: MAX_HE_IPP),
     ChemTableEntry(num: AN_N, symbol: "N", html_symbol: "N<SUB><SMALL>2</SMALL></SUB>", name: "Nitrogen",
                    weight: 14.0067, melt: 63.34, boil: 77.40, density: 0.0012506,
                    abunde: 1.99526e-05, abunds: 3.13329, reactivity: 0, max_ipp: MAX_N2_IPP),
@@ -83,6 +83,5 @@ let gases: [ChemTableEntry] = [
                    abunde: 0.000125893, abunds: 0.005236, reactivity: 40, max_ipp: MAX_CL_IPP),
     ChemTableEntry(num: AN_CH3CH2OH, symbol: "CH3CH2OH", html_symbol: "CH3CH2OH", name: "Ethanol",
                    weight: 46.0000, melt: 159.06, boil: 351.66, density: 0.895,
-                   abunde: 0.001, abunds: 0.001, reactivity: 0, max_ipp: 0)
+                   abunde: 0.001, abunds: 0.001, reactivity: 0, max_ipp: 0),
 ]
-
