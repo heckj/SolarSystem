@@ -254,6 +254,20 @@ final class Star {
         self.in_celestia = in_celestia
         self.name = name
     }
+    
+    //// L            Mass            Mass2            Eccen.    SMAxis     Planets    Designation    Name
+    //{{1.00,            1.00,            0,                0,        0,         &mercury,    "Sol",         1, "The Solar System"},        // 0
+    init(_ luminosity: Double, _ mass: Double, _ m2: Double, _ e: Double, _ a: Double, _ known_planets: Planet?, _ desig: String, _ in_celestia: Int, _ name: String) {
+        self.luminosity = luminosity
+        self.mass = mass
+        self.m2 = m2
+        self.e = e
+        self.a = a
+        self.known_planets = known_planets
+        self.desig = desig
+        self.in_celestia = in_celestia > 0
+        self.name = name
+    }
 }
 //typedef struct star {
 //    long double        luminosity;
