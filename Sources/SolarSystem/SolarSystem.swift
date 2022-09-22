@@ -214,11 +214,11 @@ let tethys = Planet(planet_no: 1, a: 1.97e-3, e: 0, axial_tilt: 0, mass: EM(1.09
 let triton = Planet(planet_no: 1, a: 2.36e-3, e: 0, axial_tilt: 0, mass: EM(2.31e-2), gas_giant: false, dust_mass: EM(2.31e-2), gas_mass: 0, next_planet: nil)
 let charon = Planet(planet_no: 1, a: 19571/KM_PER_AU, e: 0, axial_tilt: 0, mass: EM(2.54e-4), gas_giant: false, dust_mass: EM(2.54e-4), gas_mass: 0, next_planet: nil)
 
-let xena = Planet(planet_no: 11, a: 67.6681, e: 0.44177, axial_tilt: 0, mass: EM(.0025), gas_giant: false, dust_mass: EM(.0025), gas_mass: 0, next_planet: nil)
+let xena = Planet(planet_no: 11, a: 67.6681, e: 0.44177, axial_tilt: 0, mass: EM(0.0025), gas_giant: false, dust_mass: EM(0.0025), gas_mass: 0, next_planet: nil)
 let pluto = Planet(planet_no: 10, a: 39.529, e: 0.248, axial_tilt: 122.5, mass: EM(0.002), gas_giant: false, dust_mass: EM(0.002), gas_mass: 0, next_planet: xena)
 let neptune = Planet(planet_no: 9, a: 30.061, e: 0.010, axial_tilt: 29.6, mass: EM(17.14), gas_giant: true, dust_mass: 0, gas_mass: EM(17.14), first_moon: triton, next_planet: pluto)
 let uranus = Planet(planet_no: 8, a: 19.191, e: 0.046, axial_tilt: 97.9, mass: EM(14.530), gas_giant: true, dust_mass: 0, gas_mass: EM(14.530), next_planet: neptune)
-let saturn = Planet(planet_no: 7, a: 9.539, e: 0.056, axial_tilt: 26.7, mass: EM(95.18), gas_giant: true, dust_mass: 0, gas_mass: EM(95.18), first_moon: tethys, next_planet: saturn)
+let saturn = Planet(planet_no: 7, a: 9.539, e: 0.056, axial_tilt: 26.7, mass: EM(95.18), gas_giant: true, dust_mass: 0, gas_mass: EM(95.18), first_moon: tethys, next_planet: uranus)
 let jupiter = Planet(planet_no: 6, a: 5.203, e: 0.048, axial_tilt: 3.1, mass: EM(317.9), gas_giant: true, dust_mass: 0, gas_mass: EM(317.9), first_moon: io, next_planet: saturn)
 let ceres = Planet(planet_no: 5, a: 2.766, e: 0.08, axial_tilt: 0, mass: 9.5e20/SOLAR_MASS_IN_KILOGRAMS, gas_giant: false, dust_mass: 9.5e20/SOLAR_MASS_IN_KILOGRAMS, gas_mass: 0, next_planet: jupiter)
 let mars = Planet(planet_no: 4, a: 1.524, e: 0.093, axial_tilt: 25.2, mass: EM(0.1074), gas_giant: false, dust_mass: EM(0.1074), gas_mass: 0, next_planet: ceres)
