@@ -15,11 +15,20 @@ let package = Package(
             name: "SolarSystem",
             targets: ["SolarSystem"]
         ),
+        .executable(name: "Stargen", targets: ["Stargen"])
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
     ],
     targets: [
+        .executableTarget(
+            name: "Stargen",
+            dependencies: [
+                "SolarSystem",
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ]
+        ),
         .target(
             name: "SolarSystem",
             dependencies: [],
