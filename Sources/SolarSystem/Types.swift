@@ -1,12 +1,12 @@
 //
 //  Types.swift
-//  
-
-//#pragma once
 //
-//typedef struct dust_record    *dust_pointer;
-//typedef struct planets_record  *planet_pointer;
-//typedef struct gen *gen_pointer;
+
+// #pragma once
+//
+// typedef struct dust_record    *dust_pointer;
+// typedef struct planets_record  *planet_pointer;
+// typedef struct gen *gen_pointer;
 import Foundation
 
 enum PlanetType {
@@ -24,7 +24,7 @@ enum PlanetType {
     case face
 }
 
-//typedef enum planet_type {
+// typedef enum planet_type {
 //    tUnknown,
 //    tRock,
 //    tVenusian,
@@ -37,18 +37,19 @@ enum PlanetType {
 //    tSubSubGasGiant,
 //    tAsteroids,
 //    t1Face
-//} planet_type;
+// } planet_type;
 
 final class Gas {
-    var num: Int
+    var type: ChemTableEntry
     var surf_pressure: Double /* units of millibars (mb)             */
-    
-    init(num: Int, surf_pressure: Double) {
-        self.num = num
+
+    init(_ type: ChemTableEntry, surf_pressure: Double) {
+        self.type = type
         self.surf_pressure = surf_pressure
     }
 }
-//typedef struct gas {
+
+// typedef struct gas {
 //      int         num;
 //    long double    surf_pressure;        /* units of millibars (mb)             */
 //    } gas;
@@ -60,7 +61,7 @@ final class Sun {
     var age: Double
     var r_ecosphere: Double
     var name: String
-    
+
     init(luminosity: Double, mass: Double, life: Double, age: Double, r_ecosphere: Double, name: String) {
         self.luminosity = luminosity
         self.mass = mass
@@ -70,7 +71,8 @@ final class Sun {
         self.name = name
     }
 }
-//typedef struct sun {
+
+// typedef struct sun {
 //    long double    luminosity;
 //    long double    mass;
 //    long double life;
@@ -83,14 +85,14 @@ final class Sun {
 // From "SolarSystem.swift" conversion space: /*       No Orbit   Eccen. Tilt Mass    Gas Giant? Dust Mass   Gas */
 // No reason we couldn't splat in a name as well ;-)
 final class Planet: Equatable {
-    
     // NOTE(heckj): I slapped in a quick unique identifier for each generated planet to easily
     // compare linked list references...
     static func == (lhs: Planet, rhs: Planet) -> Bool {
         lhs.id == rhs.id
     }
-    var id: UUID = UUID()
-    
+
+    var id: UUID = .init()
+
     var planet_no: Int
     var a: Double /* semi-major axis of solar orbit (in AU)*/
     var e: Double /* eccentricity of solar orbit         */
@@ -99,8 +101,8 @@ final class Planet: Equatable {
     var gas_giant: Bool /* TRUE if the planet is a gas giant */
     var dust_mass: Double /* mass, ignoring gas                 */
     var gas_mass: Double /* mass, ignoring dust                 */
-    
-    var core_radius: Double = 0/* radius of the rocky core (in km)     */
+
+    var core_radius: Double = 0 /* radius of the rocky core (in km)     */
     var radius: Double = 0 /* equatorial radius (in km)         */
     var orbit_zone: Int = 0 /* the 'zone' of the planet             */
     var density: Double = 0 /* density (in g/cc)                 */
@@ -110,35 +112,35 @@ final class Planet: Equatable {
     var esc_velocity: Double = 0 /* units of cm/sec                     */
     var surf_accel: Double = 0 /* units of cm/sec2                     */
     var surf_grav: Double = 0 /* units of Earth gravities             */
-    var    rms_velocity: Double = 0        /* units of cm/sec                     */
-    var molec_weight: Double = 0        /* smallest molecular weight retained*/
-    var    volatile_gas_inventory: Double = 0
-    var    surf_pressure: Double = 0        /* units of millibars (mb)             */
-    var             greenhouse_effect: Bool = false    /* runaway greenhouse effect?         */
-    var    boil_point: Double = 0            /* the boiling point of water (Kelvin)*/
-    var    albedo: Double = 0                /* albedo of the planet                 */
-    var    exospheric_temp: Double = 0    /* units of degrees Kelvin             */
-    var estimated_temp: Double = 0     /* quick non-iterative estimate (K)  */
+    var rms_velocity: Double = 0 /* units of cm/sec                     */
+    var molec_weight: Double = 0 /* smallest molecular weight retained*/
+    var volatile_gas_inventory: Double = 0
+    var surf_pressure: Double = 0 /* units of millibars (mb)             */
+    var greenhouse_effect: Bool = false /* runaway greenhouse effect?         */
+    var boil_point: Double = 0 /* the boiling point of water (Kelvin)*/
+    var albedo: Double = 0 /* albedo of the planet                 */
+    var exospheric_temp: Double = 0 /* units of degrees Kelvin             */
+    var estimated_temp: Double = 0 /* quick non-iterative estimate (K)  */
     var estimated_terr_temp: Double = 0 /* for terrestrial moons and the like*/
-    var    surf_temp: Double = 0            /* surface temperature in Kelvin     */
-    var    greenhs_rise: Double = 0        /* Temperature rise due to greenhouse */
-    var high_temp: Double = 0            /* Day-time temperature              */
-    var low_temp: Double = 0            /* Night-time temperature             */
-    var max_temp: Double = 0            /* Summer/Day                         */
-    var min_temp: Double = 0            /* Winter/Night                         */
-    var    hydrosphere: Double = 0        /* fraction of surface covered         */
-    var    cloud_cover: Double = 0        /* fraction of surface covered         */
-    var    ice_cover: Double = 0            /* fraction of surface covered         */
+    var surf_temp: Double = 0 /* surface temperature in Kelvin     */
+    var greenhs_rise: Double = 0 /* Temperature rise due to greenhouse */
+    var high_temp: Double = 0 /* Day-time temperature              */
+    var low_temp: Double = 0 /* Night-time temperature             */
+    var max_temp: Double = 0 /* Summer/Day                         */
+    var min_temp: Double = 0 /* Winter/Night                         */
+    var hydrosphere: Double = 0 /* fraction of surface covered         */
+    var cloud_cover: Double = 0 /* fraction of surface covered         */
+    var ice_cover: Double = 0 /* fraction of surface covered         */
 
-    var sun: Sun? = nil
-    var gases: Int = 0/* Count of gases in the atmosphere: */
-    var atmosphere: Gas? = nil
-    
+    var sun: Sun?
+    var gases: Int = 0 /* Count of gases in the atmosphere: */
+    var atmosphere: [Gas] = []
+
     var planet_type: PlanetType = .unknown
     var minor_moons: Int = 0
     var first_moon: Planet?
     var next_planet: Planet?
-    
+
     init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, first_moon: Planet? = nil, next_planet: Planet?) {
         self.planet_no = planet_no
         self.a = a
@@ -153,7 +155,7 @@ final class Planet: Equatable {
     }
 }
 
-//typedef struct planets_record {
+// typedef struct planets_record {
 //    int            planet_no;
 //    long double a;                    /* semi-major axis of solar orbit (in AU)*/
 //    long double e;                    /* eccentricity of solar orbit         */
@@ -205,15 +207,15 @@ final class Planet: Equatable {
 //    } planets;
 
 /*    Define the solar system for comparisons, etc. */
-//#define ZEROES 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,NULL,0,NULL,tUnknown
+// #define ZEROES 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,NULL,0,NULL,tUnknown
 
 final class Dust {
     var inner_edge: Double
     var outer_edge: Double
     var dust_present: Bool
     var gas_present: Bool
-    var next_band: Dust? = nil
-    
+    var next_band: Dust?
+
     init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band: Dust?) {
         self.inner_edge = inner_edge
         self.outer_edge = outer_edge
@@ -223,7 +225,7 @@ final class Dust {
     }
 }
 
-//typedef struct dust_record {
+// typedef struct dust_record {
 //    long double inner_edge;
 //    long double outer_edge;
 //    int         dust_present;
@@ -241,7 +243,7 @@ final class Star {
     var desig: String
     var in_celestia: Bool
     var name: String
-    
+
     /*    L  Mass    Mass2    Eccen.    SemiMajorAxis    Designation    Name    */
     init(luminosity: Double, mass: Double, m2: Double, e: Double, a: Double, known_planets: Planet?, desig: String, in_celestia: Bool, name: String) {
         self.luminosity = luminosity
@@ -254,9 +256,9 @@ final class Star {
         self.in_celestia = in_celestia
         self.name = name
     }
-    
+
     //// L            Mass            Mass2            Eccen.    SMAxis     Planets    Designation    Name
-    //{{1.00,            1.00,            0,                0,        0,         &mercury,    "Sol",         1, "The Solar System"},        // 0
+    // {{1.00,            1.00,            0,                0,        0,         &mercury,    "Sol",         1, "The Solar System"},        // 0
     init(_ luminosity: Double, _ mass: Double, _ m2: Double, _ e: Double, _ a: Double, _ known_planets: Planet?, _ desig: String, _ in_celestia: Int, _ name: String) {
         self.luminosity = luminosity
         self.mass = mass
@@ -269,7 +271,8 @@ final class Star {
         self.name = name
     }
 }
-//typedef struct star {
+
+// typedef struct star {
 //    long double        luminosity;
 //    long double        mass;
 //    long double        m2;
@@ -285,14 +288,15 @@ final class Catalog {
     var count: Int
     var arg: String
     var stars: [Star]
-    
+
     init(count: Int, arg: String, stars: [Star]) {
         self.count = count
         self.arg = arg
         self.stars = stars
     }
 }
-//typedef struct catalog {
+
+// typedef struct catalog {
 //    int                count;
 //    char*            arg;
 //    star            (*stars)[];
@@ -302,7 +306,7 @@ final class Generation {
     var dust: Dust?
     var planet: Planet?
     var next: Generation?
-    
+
     init(dust: Dust?, planet: Planet?, next: Generation?) {
         self.dust = dust
         self.planet = planet
@@ -310,10 +314,9 @@ final class Generation {
     }
 }
 
-//typedef    struct gen
-//{
+// typedef    struct gen
+// {
 //    dust_pointer    dusts;
 //    planet_pointer    planets;
 //    gen_pointer        next;
-//} generation;
-
+// } generation;
