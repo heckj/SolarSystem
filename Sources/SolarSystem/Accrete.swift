@@ -37,7 +37,11 @@ struct AccretionDisk {
     
     // NOTE(heckj): create a proper initializer to set this value, aligned somewhere between the initializer and calling
     // dist_planetary_masses, which is the primarily call site into this...
-    var prng = RNGWrapper(Xoshiro(seed: 541))
+    var prng: RNGWrapper<Xoshiro>
+    
+    init(prng: RNGWrapper<Xoshiro>) {
+        self.prng = prng
+    }
     
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
     // in C, so I've transferred that structure to reference types (final class), originally
