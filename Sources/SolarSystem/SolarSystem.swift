@@ -267,7 +267,8 @@ func generate_stellar_system(sun: inout Sun,
                      sys_no: sys_no,
                      system_name: system_name,
                      do_gases: do_gases,
-                     do_moons: do_moons)
+                     do_moons: do_moons,
+                     prng: prng)
 }
 
 // void generate_stellar_system(sun*            sun,
@@ -326,7 +327,7 @@ func generate_stellar_system(sun: inout Sun,
 //                     do_moons);
 // }
 
-func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
+func calculate_gases(sun _: Sun, planet _: Planet, planet_id _: String) {
     // void calculate_gases(sun*            sun,
     //                     planet_pointer    planet,
     //                     char*            planet_id)
@@ -480,7 +481,6 @@ func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
     // }
 }
 
-
 func generate_planet(planet: Planet,
                      planet_no: Int,
                      sun: Sun,
@@ -489,331 +489,302 @@ func generate_planet(planet: Planet,
                      do_gases: Bool,
                      do_moons: Bool,
                      is_moon: Bool,
-                     prng: RNGWrapper<Xoshiro>) {
-    
+                     prng: RNGWrapper<Xoshiro>)
+{
     // default values
-//    planet.atmosphere        = NULL;
-//    planet.gases            = 0;
-//    planet.surf_temp        = 0;
-//    planet.high_temp        = 0;
-//    planet.low_temp        = 0;
-//    planet.max_temp        = 0;
-//    planet.min_temp        = 0;
-//    planet.greenhs_rise    = 0;
-//    planet.resonant_period = false
-    planet.planet_no        = planet_no
-    planet.sun                = sun
-    
-    planet.orbit_zone         = orbital_zone(luminosity: sun.luminosity, orbital_radius: planet.a)
-    planet.orb_period        = period(separation: planet.a, small_mass: planet.mass, large_mass: sun.mass)
+    //    planet.atmosphere        = NULL;
+    //    planet.gases            = 0;
+    //    planet.surf_temp        = 0;
+    //    planet.high_temp        = 0;
+    //    planet.low_temp        = 0;
+    //    planet.max_temp        = 0;
+    //    planet.min_temp        = 0;
+    //    planet.greenhs_rise    = 0;
+    //    planet.resonant_period = false
+    planet.planet_no = planet_no
+    planet.sun = sun
+
+    planet.orbit_zone = orbital_zone(luminosity: sun.luminosity, orbital_radius: planet.a)
+    planet.orb_period = period(separation: planet.a, small_mass: planet.mass, large_mass: sun.mass)
     if random_tilt {
         planet.axial_tilt = inclination(orb_radius: planet.a, prng: prng)
     }
 
-    planet->exospheric_temp = EARTH_EXOSPHERE_TEMP / pow2(planet->a / sun->r_ecosphere);
-            planet->rms_velocity     = rms_vel(MOL_NITROGEN,planet->exospheric_temp);
-            planet->core_radius     = kothari_radius(planet->dust_mass,FALSE,planet->orbit_zone);
-    
-            // Calculate the radius as a gas giant, to verify it will retain gas.
-            // Then if mass > Earth, it's at least 5% gas and retains He, it's
-            // some flavor of gas giant.
-    
-            planet->density         = empirical_density(planet->mass,planet->a, sun->r_ecosphere, TRUE);
-            planet->radius             = volume_radius(planet->mass,planet->density);
-    
-            planet->surf_accel       = acceleration(planet->mass,planet->radius);
-            planet->surf_grav          = gravity(planet->surf_accel);
-    
-            planet->molec_weight    = min_molec_weight(planet);
-    
-            if (((planet->mass * SUN_MASS_IN_EARTH_MASSES) > 1.0)
-              && ((planet->gas_mass / planet->mass)        > 0.05)
-              && (min_molec_weight(planet)                  <= 4.0))
-            {
-                if ((planet->gas_mass / planet->mass) < 0.20)
-                    planet->type = tSubSubGasGiant;
-                else if ((planet->mass * SUN_MASS_IN_EARTH_MASSES) < 20.0)
-                    planet->type = tSubGasGiant;
-                else
-                    planet->type = tGasGiant;
+    planet.exospheric_temp = EARTH_EXOSPHERE_TEMP / pow2(planet.a / sun.r_ecosphere)
+    planet.rms_velocity = rms_vel(molecular_weight: MOL_NITROGEN, exospheric_temp: planet.exospheric_temp)
+    planet.core_radius = kothari_radius(mass: planet.dust_mass, giant: false, zone: planet.orbit_zone)
+
+    // Calculate the radius as a gas giant, to verify it will retain gas.
+    // Then if mass > Earth, it's at least 5% gas and retains He, it's
+    // some flavor of gas giant.
+
+    planet.density = empirical_density(mass: planet.mass, orb_radius: planet.a, r_ecosphere: sun.r_ecosphere, gas_giant: true)
+    planet.radius = volume_radius(mass: planet.mass, density: planet.density)
+
+    planet.surf_accel = acceleration(mass: planet.mass, radius: planet.radius)
+    planet.surf_grav = gravity(acceleration: planet.surf_accel)
+
+    planet.molec_weight = min_molec_weight(planet: planet)
+
+    if (planet.mass * SUN_MASS_IN_EARTH_MASSES) > 1.0,
+       (planet.gas_mass / planet.mass) > 0.05,
+       min_molec_weight(planet: planet) <= 4.0
+    {
+        if (planet.gas_mass / planet.mass) < 0.20 {
+            planet.planet_type = .subsubgasgiant
+        } else if (planet.mass * SUN_MASS_IN_EARTH_MASSES) < 20.0 {
+            planet.planet_type = .subgasgiant
+        } else {
+            planet.planet_type = .gasgiant
+        }
+    } else {
+        // If not, it's rocky.
+        planet.radius = kothari_radius(mass: planet.mass, giant: false, zone: planet.orbit_zone)
+        planet.density = volume_density(mass: planet.mass, equat_radius: planet.radius)
+
+        planet.surf_accel = acceleration(mass: planet.mass, radius: planet.radius)
+        planet.surf_grav = gravity(acceleration: planet.surf_accel)
+
+        if (planet.gas_mass / planet.mass) > 0.000001 {
+            let h2_mass = planet.gas_mass * 0.85
+            let he_mass = (planet.gas_mass - h2_mass) * 0.999
+
+            var h2_loss = 0.0
+            var he_loss = 0.0
+
+            let h2_life = gas_life(molecular_weight: MOL_HYDROGEN, planet: planet)
+            let he_life = gas_life(molecular_weight: HELIUM, planet: planet)
+
+            if h2_life < sun.age {
+                h2_loss = ((1.0 - (1.0 / exp(sun.age / h2_life))) * h2_mass)
+
+                planet.gas_mass -= h2_loss
+                planet.mass -= h2_loss
+
+                planet.surf_accel = acceleration(mass: planet.mass, radius: planet.radius)
+                planet.surf_grav = gravity(acceleration: planet.surf_accel)
             }
-            else // If not, it's rocky.
+
+            if he_life < sun.age {
+                he_loss = ((1.0 - (1.0 / exp(sun.age / he_life))) * he_mass)
+
+                planet.gas_mass -= he_loss
+                planet.mass -= he_loss
+
+                planet.surf_accel = acceleration(mass: planet.mass, radius: planet.radius)
+                planet.surf_grav = gravity(acceleration: planet.surf_accel)
+            }
+            //        if (((h2_loss + he_loss) > .000001) && (flag_verbose & 0x0080))
+            //            fprintf (stderr, "%s\tLosing gas: H2: %5.3Lf EM, He: %5.3Lf EM\n",
+            //                     planet_id,
+            //                     h2_loss * SUN_MASS_IN_EARTH_MASSES, he_loss * SUN_MASS_IN_EARTH_MASSES);
+        }
+
+        planet.day = day_length(planet: planet) /* Modifies planet->resonant_period */
+        planet.esc_velocity = escape_vel(mass: planet.mass, radius: planet.radius)
+
+        if (planet.planet_type == .gasgiant)
+            || (planet.planet_type == .subgasgiant)
+            || (planet.planet_type == .subsubgasgiant)
+        {
+            planet.greenhouse_effect = false
+            planet.volatile_gas_inventory = INCREDIBLY_LARGE_NUMBER
+            planet.surf_pressure = INCREDIBLY_LARGE_NUMBER
+
+            planet.boil_point = INCREDIBLY_LARGE_NUMBER
+
+            planet.surf_temp = INCREDIBLY_LARGE_NUMBER
+            planet.greenhs_rise = 0
+            planet.albedo = prng.about(GAS_GIANT_ALBEDO, variation: 0.1)
+            planet.hydrosphere = 1.0
+            planet.cloud_cover = 1.0
+            planet.ice_cover = 0.0
+            planet.surf_grav = gravity(acceleration: planet.surf_accel)
+            planet.molec_weight = min_molec_weight(planet: planet)
+            planet.surf_grav = INCREDIBLY_LARGE_NUMBER
+            planet.estimated_temp = est_temp(ecosphere_radius: sun.r_ecosphere, orb_radius: planet.a, albedo: planet.albedo)
+            planet.estimated_terr_temp = est_temp(ecosphere_radius: sun.r_ecosphere, orb_radius: planet.a, albedo: EARTH_ALBEDO)
+
+            if planet.estimated_terr_temp >= FREEZING_POINT_OF_WATER,
+               planet.estimated_terr_temp <= EARTH_AVERAGE_KELVIN + 10.0,
+               sun.age > 2.0e9
             {
-                planet->radius         = kothari_radius(planet->mass,FALSE,planet->orbit_zone);
-                planet->density     = volume_density(planet->mass,planet->radius);
-    
-                planet->surf_accel  = acceleration(planet->mass,planet->radius);
-                planet->surf_grav     = gravity(planet->surf_accel);
-    
-                if ((planet->gas_mass / planet->mass)        > 0.000001)
+                // habitable_jovians++; ??
+
+                //                        if (flag_verbose & 0x8000)
+                //                        {
+                //                            fprintf (stderr, "%s\t%s (%4.2LfEM %5.3Lf By)%s with earth-like temperature (%.1Lf C, %.1Lf F, %+.1Lf C Earth).\n",
+                //                                     planet_id,
+                //                                     planet->type == tGasGiant ? "Jovian" :
+                //                                     planet->type == tSubGasGiant ? "Sub-Jovian" :
+                //                                     planet->type == tSubSubGasGiant ? "Gas Dwarf" :
+                //                                     "Big",
+                //                                     planet->mass * SUN_MASS_IN_EARTH_MASSES,
+                //                                     sun->age /1.0E9,
+                //                                     planet->first_moon == NULL ? "" : " WITH MOON",
+                //                                     temp - FREEZING_POINT_OF_WATER,
+                //                                     32 + ((temp - FREEZING_POINT_OF_WATER) * 1.8),
+                //                                     temp - EARTH_AVERAGE_KELVIN);
+                //                        }
+            }
+        } else {
+            // rocky world, not gas giant
+            planet.estimated_temp = est_temp(ecosphere_radius: sun.r_ecosphere, orb_radius: planet.a, albedo: EARTH_ALBEDO)
+            planet.estimated_terr_temp = est_temp(ecosphere_radius: sun.r_ecosphere, orb_radius: planet.a, albedo: EARTH_ALBEDO)
+
+            planet.surf_grav = gravity(acceleration: planet.surf_accel)
+            planet.molec_weight = min_molec_weight(planet: planet)
+
+            planet.greenhouse_effect = grnhouse(r_ecosphere: sun.r_ecosphere, orb_radius: planet.a)
+            planet.volatile_gas_inventory = vol_inventory(mass: planet.mass,
+                                                          escape_vel: planet.esc_velocity,
+                                                          rms_vel: planet.rms_velocity,
+                                                          stellar_mass: sun.mass,
+                                                          zone: planet.orbit_zone,
+                                                          greenhouse_effect: planet.greenhouse_effect,
+                                                          accreted_gas: (planet.gas_mass
+                                                              / planet.mass) > 0.000001,
+                                                          prng: prng)
+            planet.surf_pressure = pressure(volatile_gas_inventory: planet.volatile_gas_inventory,
+                                            equat_radius: planet.radius,
+                                            gravity: planet.surf_grav)
+
+            if planet.surf_pressure == 0.0 {
+                planet.boil_point = 0.0
+            } else {
+                planet.boil_point = boiling_point(surf_pressure: planet.surf_pressure)
+            }
+
+            iterate_surface_temp(planet: planet, prng: prng) /*    Sets:
+             *        planet->surf_temp
+             *        planet->greenhs_rise
+             *        planet->albedo
+             *        planet->hydrosphere
+             *        planet->cloud_cover
+             *        planet->ice_cover
+             */
+
+            if do_gases,
+               planet.max_temp >= FREEZING_POINT_OF_WATER,
+               planet.min_temp <= planet.boil_point
+            {
+                calculate_gases(sun: sun, planet: planet, planet_id: planet_id)
+            }
+
+            /*
+             *    Next we assign a type to the planet.
+             */
+
+            if planet.surf_pressure < 1.0 {
+                if !is_moon,
+                   (planet.mass * SUN_MASS_IN_EARTH_MASSES) < ASTEROID_MASS_LIMIT
                 {
-                    long double h2_mass = planet->gas_mass * 0.85;
-                    long double he_mass = (planet->gas_mass - h2_mass) * 0.999;
-    
-                    long double h2_loss = 0.0;
-                    long double he_loss = 0.0;
-    
-    
-                    long double h2_life = gas_life(MOL_HYDROGEN, planet);
-                    long double he_life = gas_life(HELIUM, planet);
-    
-                    if (h2_life < sun->age)
-                    {
-                        h2_loss = ((1.0 - (1.0 / exp(sun->age / h2_life))) * h2_mass);
-    
-                        planet->gas_mass -= h2_loss;
-                        planet->mass     -= h2_loss;
-    
-                        planet->surf_accel  = acceleration(planet->mass,planet->radius);
-                        planet->surf_grav     = gravity(planet->surf_accel);
-                    }
-    
-                    if (he_life < sun->age)
-                    {
-                        he_loss = ((1.0 - (1.0 / exp(sun->age / he_life))) * he_mass);
-    
-                        planet->gas_mass -= he_loss;
-                        planet->mass     -= he_loss;
-    
-                        planet->surf_accel  = acceleration(planet->mass,planet->radius);
-                        planet->surf_grav     = gravity(planet->surf_accel);
-                    }
-    
-                    if (((h2_loss + he_loss) > .000001) && (flag_verbose & 0x0080))
-                        fprintf (stderr, "%s\tLosing gas: H2: %5.3Lf EM, He: %5.3Lf EM\n",
-                                 planet_id,
-                                 h2_loss * SUN_MASS_IN_EARTH_MASSES, he_loss * SUN_MASS_IN_EARTH_MASSES);
+                    planet.planet_type = .asteroids
+                } else {
+                    planet.planet_type = .rock
+                }
+            } else if planet.surf_pressure > 6000.0, planet.molec_weight <= 2.0 {
+                // Retains Hydrogen
+                planet.planet_type = .subsubgasgiant
+                planet.gases = 0
+                planet.atmosphere = []
+            } else {
+                // Atmospheres:
+                if Int(planet.day) == Int(planet.orb_period * 24.0) || planet.resonant_period {
+                    planet.planet_type = .face
+                } else if planet.hydrosphere >= 0.95 {
+                    planet.planet_type = .water // >95% water
+                } else if planet.ice_cover >= 0.95 {
+                    planet.planet_type = .ice // >95% ice
+                } else if planet.hydrosphere > 0.05 {
+                    planet.planet_type = .terrestrial // Terrestrial
+                }
+                // else <5% water
+                else if planet.max_temp > planet.boil_point {
+                    planet.planet_type = .venusian // Hot = Venusian
+                } else if (planet.gas_mass / planet.mass) > 0.0001 {
+                    // Accreted gas
+                    planet.planet_type = .ice // But no Greenhouse
+                    planet.ice_cover = 1.0 // or liquid water
+                } // Make it an Ice World
+                else if planet.surf_pressure <= 250.0 {
+                    // Thin air = Martian
+                    planet.planet_type = .martian
+                } else if planet.surf_temp < FREEZING_POINT_OF_WATER {
+                    planet.planet_type = .ice
+                } else {
+                    planet.planet_type = .unknown
+                    //                        if (flag_verbose & 0x0001)
+                    //                            fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
+                    //                                            type_string (planet->type),
+                    //                                            planet->surf_pressure,
+                    //                                            planet->mass * SUN_MASS_IN_EARTH_MASSES,
+                    //                                            planet->surf_grav,
+                    //                                            planet->surf_temp  - EARTH_AVERAGE_KELVIN,
+                    //                                            planet_id,
+                    //                                            ((int)planet->day == (int)(planet->orb_period * 24.0) ||
+                    //                                             (planet->resonant_period)) ? "(1-Face)" : ""
+                    //                                     );
                 }
             }
-    
-            planet->day = day_length(planet);    /* Modifies planet->resonant_period */
-            planet->esc_velocity     = escape_vel(planet->mass,planet->radius);
-    
-            if ((planet->type == tGasGiant)
-             || (planet->type == tSubGasGiant)
-             || (planet->type == tSubSubGasGiant))
-            {
-                planet->greenhouse_effect         = FALSE;
-                planet->volatile_gas_inventory     = INCREDIBLY_LARGE_NUMBER;
-                planet->surf_pressure             = INCREDIBLY_LARGE_NUMBER;
-    
-                planet->boil_point                 = INCREDIBLY_LARGE_NUMBER;
-    
-                planet->surf_temp                = INCREDIBLY_LARGE_NUMBER;
-                planet->greenhs_rise             = 0;
-                planet->albedo                     = about(GAS_GIANT_ALBEDO,0.1);
-                planet->hydrosphere             = 1.0;
-                planet->cloud_cover                 = 1.0;
-                planet->ice_cover                 = 0.0;
-                planet->surf_grav                 = gravity(planet->surf_accel);
-                planet->molec_weight            = min_molec_weight(planet);
-                planet->surf_grav                 = INCREDIBLY_LARGE_NUMBER;
-                 planet->estimated_temp            = est_temp(sun->r_ecosphere, planet->a,  planet->albedo);
-                planet->estimated_terr_temp        = est_temp(sun->r_ecosphere, planet->a,  EARTH_ALBEDO);
-    
-                {
-                    long double temp = planet->estimated_terr_temp;
-    
-                    if ((temp >= FREEZING_POINT_OF_WATER)
-                     && (temp <= EARTH_AVERAGE_KELVIN + 10.0)
-                     && (sun->age > 2.0E9))
-                    {
-                        habitable_jovians++;
-    
-                        if (flag_verbose & 0x8000)
-                        {
-                            fprintf (stderr, "%s\t%s (%4.2LfEM %5.3Lf By)%s with earth-like temperature (%.1Lf C, %.1Lf F, %+.1Lf C Earth).\n",
-                                     planet_id,
-                                     planet->type == tGasGiant ? "Jovian" :
-                                     planet->type == tSubGasGiant ? "Sub-Jovian" :
-                                     planet->type == tSubSubGasGiant ? "Gas Dwarf" :
-                                     "Big",
-                                     planet->mass * SUN_MASS_IN_EARTH_MASSES,
-                                     sun->age /1.0E9,
-                                     planet->first_moon == NULL ? "" : " WITH MOON",
-                                     temp - FREEZING_POINT_OF_WATER,
-                                     32 + ((temp - FREEZING_POINT_OF_WATER) * 1.8),
-                                     temp - EARTH_AVERAGE_KELVIN);
+        }
+
+        if do_moons, !is_moon {
+            if planet.first_moon != nil {
+                var n: Int = 0
+                var ptr: Planet? = planet.first_moon
+
+                while ptr != nil {
+                    if ptr!.mass * SUN_MASS_IN_EARTH_MASSES > 0.000001 {
+                        var moon_id: String
+                        var roche_limit: Double = 0.0
+                        var hill_sphere: Double = 0.0
+                        ptr!.a = planet.a
+                        ptr!.e = planet.e
+                        n += 1
+                        moon_id = "\(planet_id).\(n)"
+                        generate_planet(planet: ptr!, planet_no: n, sun: sun, random_tilt: random_tilt, planet_id: moon_id, do_gases: do_gases, do_moons: do_moons, is_moon: true, prng: prng)
+                        // Adjusts ptr->density
+
+                        roche_limit = 2.44 * planet.radius * pow(planet.density / ptr!.density, 1.0 / 3.0)
+                        hill_sphere = planet.a * KM_PER_AU * pow(planet.mass / (3.0 * sun.mass), 1.0 / 3.0)
+
+                        if (roche_limit * 3.0) < hill_sphere {
+                            ptr!.a = prng.random_number(in: (roche_limit * 1.5) ... (hill_sphere / 2.0)) / KM_PER_AU
+                            ptr!.e = prng.random_eccentricity()
+                        } else {
+                            ptr!.a = 0
+                            ptr!.e = 0
                         }
+                        //                            if (flag_verbose & 0x40000)
+                        //                            {
+                        //                                fprintf (stderr,
+                        //                                            "   Roche limit: R = %4.2Lg, rM = %4.2Lg, rm = %4.2Lg -> %.0Lf km\n"
+                        //                                            "   Hill Sphere: a = %4.2Lg, m = %4.2Lg, M = %4.2Lg -> %.0Lf km\n"
+                        //                                            "%s Moon orbit: a = %.0Lf km, e = %.0Lg\n",
+                        //                                            planet->radius, planet->density, ptr->density,
+                        //                                            roche_limit,
+                        //                                            planet->a * KM_PER_AU, planet->mass * SOLAR_MASS_IN_KILOGRAMS, sun->mass * SOLAR_MASS_IN_KILOGRAMS,
+                        //                                            hill_sphere,
+                        //                                            moon_id,
+                        //                                            ptr->moon_a * KM_PER_AU, ptr->moon_e
+                        //                                        );
+                        //                            }
+                        //
+                        //                            if (flag_verbose & 0x1000)
+                        //                            {
+                        //                                fprintf (stderr, "  %s: (%7.2LfEM) %d %4.2LgEM\n",
+                        //                                    planet_id,
+                        //                                    planet->mass * SUN_MASS_IN_EARTH_MASSES,
+                        //                                    n,
+                        //                                    ptr->mass * SUN_MASS_IN_EARTH_MASSES);
+                        //                            }
                     }
+                    ptr = ptr?.next_planet
                 }
             }
-            else
-            {
-                planet->estimated_temp            = est_temp(sun->r_ecosphere, planet->a,  EARTH_ALBEDO);
-                planet->estimated_terr_temp        = est_temp(sun->r_ecosphere, planet->a,  EARTH_ALBEDO);
-    
-                planet->surf_grav                 = gravity(planet->surf_accel);
-                planet->molec_weight            = min_molec_weight(planet);
-    
-                planet->greenhouse_effect         = grnhouse(sun->r_ecosphere, planet->a);
-                planet->volatile_gas_inventory     = vol_inventory(planet->mass,
-                                                                planet->esc_velocity,
-                                                                planet->rms_velocity,
-                                                                sun->mass,
-                                                                planet->orbit_zone,
-                                                                planet->greenhouse_effect,
-                                                                (planet->gas_mass
-                                                                 / planet->mass) > 0.000001);
-                planet->surf_pressure             = pressure(planet->volatile_gas_inventory,
-                                                           planet->radius,
-                                                           planet->surf_grav);
-    
-                if ((planet->surf_pressure == 0.0))
-                    planet->boil_point             = 0.0;
-                else
-                    planet->boil_point             = boiling_point(planet->surf_pressure);
-    
-                iterate_surface_temp(planet);        /*    Sets:
-                                                     *        planet->surf_temp
-                                                     *        planet->greenhs_rise
-                                                     *        planet->albedo
-                                                     *        planet->hydrosphere
-                                                     *        planet->cloud_cover
-                                                     *        planet->ice_cover
-                                                     */
-    
-                if (do_gases &&
-                    (planet->max_temp >= FREEZING_POINT_OF_WATER) &&
-                    (planet->min_temp <= planet->boil_point))
-                    calculate_gases(sun, planet, planet_id);
-    
-                /*
-                 *    Next we assign a type to the planet.
-                 */
-    
-                if (planet->surf_pressure < 1.0)
-                {
-                    if (!is_moon
-                     && ((planet->mass * SUN_MASS_IN_EARTH_MASSES) < ASTEROID_MASS_LIMIT))
-                        planet->type             = tAsteroids;
-                    else
-                        planet->type             = tRock;
-                }
-                else if ((planet->surf_pressure > 6000.0) &&
-                         (planet->molec_weight <= 2.0))    // Retains Hydrogen
-                {
-                    planet->type = tSubSubGasGiant;
-                    planet->gases = 0;
-                    free(planet->atmosphere);
-                    planet->atmosphere = NULL;
-                }
-                else
-                {                                        // Atmospheres:
-                    if (((int)planet->day == (int)(planet->orb_period * 24.0) ||
-                                             (planet->resonant_period)))
-                        planet->type = t1Face;
-                    else if (planet->hydrosphere >= 0.95)
-                        planet->type = tWater;                // >95% water
-                    else if (planet->ice_cover >= 0.95)
-                        planet->type = tIce;                // >95% ice
-                    else if (planet->hydrosphere > 0.05)
-                        planet->type = tTerrestrial;        // Terrestrial
-                                                            // else <5% water
-                    else if (planet->max_temp > planet->boil_point)
-                        planet->type = tVenusian;            // Hot = Venusian
-                    else if ((planet->gas_mass / planet->mass) > 0.0001)
-                    {                                        // Accreted gas
-                        planet->type = tIce;                // But no Greenhouse
-                        planet->ice_cover = 1.0;            // or liquid water
-                    }                                        // Make it an Ice World
-                    else if (planet->surf_pressure <= 250.0)// Thin air = Martian
-                        planet->type = tMartian;
-                    else if (planet->surf_temp < FREEZING_POINT_OF_WATER)
-                        planet->type = tIce;
-                    else
-                    {
-                        planet->type = tUnknown;
-    
-                        if (flag_verbose & 0x0001)
-                            fprintf (stderr, "%12s\tp=%4.2Lf\tm=%4.2Lf\tg=%4.2Lf\tt=%+.1Lf\t%s\t Unknown %s\n",
-                                            type_string (planet->type),
-                                            planet->surf_pressure,
-                                            planet->mass * SUN_MASS_IN_EARTH_MASSES,
-                                            planet->surf_grav,
-                                            planet->surf_temp  - EARTH_AVERAGE_KELVIN,
-                                            planet_id,
-                                            ((int)planet->day == (int)(planet->orb_period * 24.0) ||
-                                             (planet->resonant_period)) ? "(1-Face)" : ""
-                                     );
-                    }
-                }
-            }
-    
-            if (do_moons && !is_moon)
-            {
-                if (planet->first_moon != NULL)
-                {
-                    int             n;
-                    planet_pointer    ptr;
-    
-                    for (n=0, ptr=planet->first_moon;
-                         ptr != NULL;
-                         ptr=ptr->next_planet)
-                    {
-                        if (ptr->mass * SUN_MASS_IN_EARTH_MASSES > .000001)
-                        {
-                            char    moon_id[80];
-                            long double    roche_limit = 0.0;
-                            long double    hill_sphere = 0.0;
-    
-                            ptr->a = planet->a;
-                            ptr->e = planet->e;
-    
-                            n++;
-    
-                            sprintf(moon_id,
-                                    "%s.%d",
-                                    planet_id, n);
-    
-                            generate_planet(ptr, n,
-                                            sun, random_tilt,
-                                            moon_id,
-                                            do_gases,
-                                            do_moons, TRUE);    // Adjusts ptr->density
-    
-                            roche_limit = 2.44 * planet->radius * pow((planet->density / ptr->density), (1.0 / 3.0));
-                            hill_sphere = planet->a * KM_PER_AU * pow((planet->mass / (3.0 * sun->mass)), (1.0 / 3.0));
-    
-                            if ((roche_limit * 3.0) < hill_sphere)
-                            {
-                                ptr->moon_a = random_number(roche_limit * 1.5, hill_sphere / 2.0) / KM_PER_AU;
-                                ptr->moon_e = random_eccentricity ();
-                            }
-                            else
-                            {
-                                ptr->moon_a = 0;
-                                ptr->moon_e = 0;
-                            }
-    
-                            if (flag_verbose & 0x40000)
-                            {
-                                fprintf (stderr,
-                                            "   Roche limit: R = %4.2Lg, rM = %4.2Lg, rm = %4.2Lg -> %.0Lf km\n"
-                                            "   Hill Sphere: a = %4.2Lg, m = %4.2Lg, M = %4.2Lg -> %.0Lf km\n"
-                                            "%s Moon orbit: a = %.0Lf km, e = %.0Lg\n",
-                                            planet->radius, planet->density, ptr->density,
-                                            roche_limit,
-                                            planet->a * KM_PER_AU, planet->mass * SOLAR_MASS_IN_KILOGRAMS, sun->mass * SOLAR_MASS_IN_KILOGRAMS,
-                                            hill_sphere,
-                                            moon_id,
-                                            ptr->moon_a * KM_PER_AU, ptr->moon_e
-                                        );
-                            }
-    
-                            if (flag_verbose & 0x1000)
-                            {
-                                fprintf (stderr, "  %s: (%7.2LfEM) %d %4.2LgEM\n",
-                                    planet_id,
-                                    planet->mass * SUN_MASS_IN_EARTH_MASSES,
-                                    n,
-                                    ptr->mass * SUN_MASS_IN_EARTH_MASSES);
-                            }
-                        }
-                    }
-                }
-            }
-    
+        }
+    }
 }
 
 // void generate_planet(planet_pointer    planet,
@@ -1408,7 +1379,8 @@ func generate_planets(sun: Sun,
                       sys_no _: Int,
                       system_name: String,
                       do_gases: Bool,
-                      do_moons: Bool)
+                      do_moons: Bool,
+                      prng: RNGWrapper<Xoshiro>)
 {
     var planet: Planet? = innermost_planet
     var planet_no = 1
@@ -1428,7 +1400,8 @@ func generate_planets(sun: Sun,
                         planet_id: planet_id,
                         do_gases: do_gases,
                         do_moons: do_moons,
-                        is_moon: false)
+                        is_moon: false,
+                        prng: prng)
 
         /*
          *    Now we're ready to test for habitable planets,
