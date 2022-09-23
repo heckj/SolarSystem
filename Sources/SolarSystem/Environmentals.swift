@@ -3,7 +3,19 @@
 //
 
 import Foundation
-//
+
+func pow3(_ x: Double) -> Double {
+    x * x * x
+}
+
+func pow2(_ x: Double) -> Double {
+    x * x
+}
+
+func pow1_4(_ x: Double) -> Double {
+    sqrt(sqrt(x))
+}
+
 // long double luminosity(long double);
 // int orb_zone(long double, long double);
 // long double volume_radius(long double, long double);
@@ -113,124 +125,85 @@ func volume_radius(mass: Double, density: Double) -> Double {
 /// *     pp.833-843, 1936 for the derivation.  Specifically, this is Kothari's    */
 /// *     eq.23, which appears on page 840.                                        */
 /// *--------------------------------------------------------------------------*/
-//
-// long double kothari_radius(mass, giant, zone)
-// long double mass;
-// int giant, zone;
-// {
-//    volatile long double temp1;
-//    long double temp, temp2, atomic_weight, atomic_num;
-//
-//    if (zone == 1)
-//    {
-//        if (giant)
-//        {
-//            atomic_weight = 9.5;
-//            atomic_num = 4.5;
-//        }
-//        else
-//        {
-//            atomic_weight = 15.0;
-//            atomic_num = 8.0;
-//        }
-//    }
-//    else
-//        if (zone == 2)
-//        {
-//            if (giant)
-//            {
-//                atomic_weight = 2.47;
-//                atomic_num = 2.0;
-//            }
-//            else
-//            {
-//                atomic_weight = 10.0;
-//                atomic_num = 5.0;
-//            }
-//        }
-//        else
-//        {
-//            if (giant)
-//            {
-//                atomic_weight = 7.0;
-//                atomic_num = 4.0;
-//            }
-//            else
-//            {
-//                atomic_weight = 10.0;
-//                atomic_num = 5.0;
-//            }
-//        }
-//
-//    temp1 = atomic_weight * atomic_num;
-//
-//    temp = (2.0 * BETA_20 * pow(SOLAR_MASS_IN_GRAMS,(1.0 / 3.0)))
-//         / (A1_20 * pow(temp1, (1.0 / 3.0)));
-//
-//    temp2 = A2_20 * pow(atomic_weight,(4.0 / 3.0)) * pow(SOLAR_MASS_IN_GRAMS,(2.0 / 3.0));
-//    temp2 = temp2 * pow(mass,(2.0 / 3.0));
-//    temp2 = temp2 / (A1_20 * pow2(atomic_num));
-//    temp2 = 1.0 + temp2;
-//    temp = temp / temp2;
-//    temp = (temp * pow(mass,(1.0 / 3.0))) / CM_PER_KM;
-//
-//    temp /= JIMS_FUDGE;            /* Make Earth = actual earth */
-//
-//    return(temp);
-// }
-//
-//
+func kothari_radius(mass: Double, giant: Bool, zone: Int) -> Double {
+    let atomic_weight: Double
+    let atomic_num: Double
+
+    if (zone == 1) {
+        if (giant) {
+            atomic_weight = 9.5;
+            atomic_num = 4.5;
+        } else {
+            atomic_weight = 15.0;
+            atomic_num = 8.0;
+        }
+    } else if (zone == 2) {
+        if (giant) {
+            atomic_weight = 2.47
+            atomic_num = 2.0
+        } else {
+            atomic_weight = 10.0
+            atomic_num = 5.0
+        }
+    } else { // zone == 3
+        if (giant) {
+            atomic_weight = 7.0
+            atomic_num = 4.0
+        } else {
+            atomic_weight = 10.0
+            atomic_num = 5.0
+        }
+    }
+
+    let temp1 = atomic_weight * atomic_num;
+    var temp = (2.0 * BETA_20 * pow(SOLAR_MASS_IN_GRAMS,(1.0 / 3.0)))
+         / (A1_20 * pow(temp1, (1.0 / 3.0)));
+
+    var temp2 = A2_20 * pow(atomic_weight,(4.0 / 3.0)) * pow(SOLAR_MASS_IN_GRAMS,(2.0 / 3.0));
+    temp2 = temp2 * pow(mass,(2.0 / 3.0));
+    temp2 = temp2 / (A1_20 * (atomic_num * atomic_num));
+    temp2 = 1.0 + temp2;
+    temp = temp / temp2;
+    temp = (temp * pow(mass,(1.0 / 3.0))) / CM_PER_KM;
+
+    temp /= JIMS_FUDGE;            /* Make Earth = actual earth */
+    return(temp);
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *    The mass passed in is in units of solar masses, and the orbital radius    */
 /// *    is in units of AU.    The density is returned in units of grams/cc.        */
 /// *--------------------------------------------------------------------------*/
-//
-// long double empirical_density(long double mass, long double orb_radius,
-//                              long double r_ecosphere, int gas_giant)
-// {
-//    long double temp;
-//
-//    temp = pow(mass * SUN_MASS_IN_EARTH_MASSES,(1.0 / 8.0));
-//    temp = temp * pow1_4(r_ecosphere / orb_radius);
-//    if (gas_giant)
-//        return(temp * 1.2);
-//    else
-//        return(temp * 5.5);
-// }
-//
-//
+func empirical_density(mass: Double, orb_radius: Double,
+                       r_ecosphere: Double, gas_giant: Bool) -> Double {
+    var temp = pow(mass * SUN_MASS_IN_EARTH_MASSES,(1.0 / 8.0));
+    temp = temp * pow1_4(r_ecosphere / orb_radius);
+    if (gas_giant) {
+        return(temp * 1.2)
+    }
+    return(temp * 5.5)
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *    The mass passed in is in units of solar masses, and the equatorial        */
 /// *    radius is in km.  The density is returned in units of grams/cc.            */
 /// *--------------------------------------------------------------------------*/
-//
-// long double volume_density(mass, equat_radius)
-// long double mass, equat_radius;
-// {
-//    long double volume;
-//
-//    mass = mass * SOLAR_MASS_IN_GRAMS;
-//    equat_radius = equat_radius * CM_PER_KM;
-//    volume = (4.0 * PI * pow3(equat_radius)) / 3.0;
-//    return(mass / volume);
-// }
-//
-//
+func volume_density(mass: Double, equat_radius: Double) -> Double {
+    let mass_grams = mass * SOLAR_MASS_IN_GRAMS;
+    let equat_radius_in_cm = equat_radius * CM_PER_KM;
+    let volume = (4.0 * Double.pi * pow3(equat_radius_in_cm)) / 3.0;
+    return(mass_grams / volume);
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *    The separation is in units of AU, and both masses are in units of solar */
 /// *    masses.     The period returned is in terms of Earth days.                    */
 /// *--------------------------------------------------------------------------*/
-//
-// long double period(separation, small_mass, large_mass)
-// long double separation, small_mass, large_mass;
-// {
-//    long double period_in_years;
-//
-//    period_in_years = sqrt(pow3(separation) / (small_mass + large_mass));
-//    return(period_in_years * DAYS_IN_A_YEAR);
-// }
-//
-//
+func period(separation: Double, small_mass: Double, large_mass: Double) -> Double {
+    let period_in_years = sqrt(pow3(separation) / (small_mass + large_mass))
+    return(period_in_years * DAYS_IN_A_YEAR)
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     Fogg's information for this routine came from Dole "Habitable Planets    */
 /// * for Man", Blaisdell Publishing Company, NY, 1964.  From this, he came    */
@@ -248,104 +221,81 @@ func volume_radius(mass: Double, density: Double) -> Double {
 /// *     The length of the day is returned in units of hours.                    */
 /// *--------------------------------------------------------------------------*/
 //
-// long double day_length(planet_pointer    planet)
-// {
-//    long double planetary_mass_in_grams = planet->mass * SOLAR_MASS_IN_GRAMS;
-//    long double    equatorial_radius_in_cm = planet->radius * CM_PER_KM;
-//    long double    year_in_hours            = planet->orb_period * 24.0;
-//    int giant = (planet->type == tGasGiant ||
-//                 planet->type == tSubGasGiant ||
-//                 planet->type == tSubSubGasGiant);
-//    long double    k2;
-//    long double    base_angular_velocity;
-//    long double    change_in_angular_velocity;
-//    long double    ang_velocity;
-//    long double    spin_resonance_factor;
-//    long double    day_in_hours;
-//
-//    int stopped = FALSE;
-//
-//    planet->resonant_period = FALSE;    /* Warning: Modify the planet */
-//
-//    if (giant)
-//        k2 = 0.24;
-//    else
-//        k2 = 0.33;
-//
-//    base_angular_velocity = sqrt(2.0 * J * (planetary_mass_in_grams) /
-//                                 (k2 * pow2(equatorial_radius_in_cm)));
-//
-/// *    This next calculation determines how much the planet's rotation is     */
-/// *    slowed by the presence of the star.                                 */
-//
-//    change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL *
-//                                 (planet->density / EARTH_DENSITY) *
-//                                 (equatorial_radius_in_cm / EARTH_RADIUS) *
-//                                 (EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) *
-//                                 pow(planet->sun->mass, 2.0) *
-//                                 (1.0 / pow(planet->a, 6.0));
-//    ang_velocity = base_angular_velocity + (change_in_angular_velocity *
-//                                            planet->sun->age);
-//
-/// * Now we change from rad/sec to hours/rotation.                         */
-//
-//    if (ang_velocity <= 0.0)
-//    {
-//       stopped = TRUE;
-//       day_in_hours = INCREDIBLY_LARGE_NUMBER ;
-//    }
-//    else
-//        day_in_hours = RADIANS_PER_ROTATION / (SECONDS_PER_HOUR * ang_velocity);
-//
-//    if ((day_in_hours >= year_in_hours) || stopped)
-//    {
-//        if (planet->e > 0.1)
-//        {
-//          spin_resonance_factor     = (1.0 - planet->e) / (1.0 + planet->e);
-//          planet->resonant_period     = TRUE;
-//          return(spin_resonance_factor * year_in_hours);
-//        }
-//        else
-//          return(year_in_hours);
-//    }
-//
-//    return(day_in_hours);
-// }
-//
-//
+func day_length(planet: Planet) -> Double {
+    let planetary_mass_in_grams = planet.mass * SOLAR_MASS_IN_GRAMS;
+    let equatorial_radius_in_cm = planet.radius * CM_PER_KM;
+    let year_in_hours = planet.orb_period * 24.0;
+    let giant: Bool = planet.planet_type == .subgasgiant || planet.planet_type == .gasgiant || planet.planet_type == .subsubgasgiant
+    
+    let k2: Double
+    let day_in_hours: Double
+    
+    var stopped: Bool = false;
+    planet.resonant_period = false;    /* Warning: Modify the planet */
+    
+    if (giant) {
+        k2 = 0.24
+    } else {
+        k2 = 0.33
+    }
+    
+    let base_angular_velocity = sqrt(2.0 * J * planetary_mass_in_grams /
+                                     (k2 * equatorial_radius_in_cm * equatorial_radius_in_cm))
+    
+    /*    This next calculation determines how much the planet's rotation is     */
+    /*    slowed by the presence of the star.                                 */
+    
+    let change_in_angular_velocity = CHANGE_IN_EARTH_ANG_VEL *
+        (planet.density / EARTH_DENSITY) *
+        (equatorial_radius_in_cm / EARTH_RADIUS) *
+        (EARTH_MASS_IN_GRAMS / planetary_mass_in_grams) *
+        pow(planet.sun!.mass, 2.0) *
+        (1.0 / pow(planet.a, 6.0))
+    
+    let ang_velocity = base_angular_velocity + (change_in_angular_velocity * planet.sun!.age)
+    
+    /* Now we change from rad/sec to hours/rotation. */
+    
+    if (ang_velocity <= 0.0) {
+       stopped = true
+       day_in_hours = INCREDIBLY_LARGE_NUMBER
+    } else {
+        day_in_hours = RADIANS_PER_ROTATION / (SECONDS_PER_HOUR * ang_velocity)
+    }
+            
+    if ((day_in_hours >= year_in_hours) || stopped) {
+        if (planet.e > 0.1) {
+            let spin_resonance_factor = (1.0 - planet.e) / (1.0 + planet.e);
+            planet.resonant_period = true
+            return(spin_resonance_factor * year_in_hours)
+        } else {
+            return(year_in_hours);
+        }
+    }
+    return(day_in_hours);
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     The orbital radius is expected in units of Astronomical Units (AU).    */
 /// *     Inclination is returned in units of degrees.                            */
 /// *--------------------------------------------------------------------------*/
-//
-// int inclination(orb_radius)
-// long double orb_radius;
-// {
-//    int temp;
-//
-//    temp = (int)(pow(orb_radius,0.2) * about(EARTH_AXIAL_TILT,0.4));
-//    return(temp % 360);
-// }
-//
-//
+func inclination(orb_radius: Double, prng: RNGWrapper<Xoshiro>) -> Double {
+    pow(orb_radius, 0.2) * prng.about(EARTH_AXIAL_TILT, variation: 0.4) / 360.0
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     This function implements the escape velocity calculation.    Note that    */
 /// *    it appears that Fogg's eq.15 is incorrect.                                */
 /// *    The mass is in units of solar mass, the radius in kilometers, and the    */
 /// *    velocity returned is in cm/sec.                                            */
 /// *--------------------------------------------------------------------------*/
-//
-// long double escape_vel(mass, radius)
-// long double mass, radius;
-// {
-//    long double mass_in_grams, radius_in_cm;
-//
-//    mass_in_grams = mass * SOLAR_MASS_IN_GRAMS;
-//    radius_in_cm = radius * CM_PER_KM;
-//    return(sqrt(2.0 * GRAV_CONSTANT * mass_in_grams / radius_in_cm));
-// }
-//
-//
+func escape_vel(mass: Double, radius: Double) -> Double {
+    let mass_in_grams = mass * SOLAR_MASS_IN_GRAMS;
+    let radius_in_cm = radius * CM_PER_KM;
+    return(sqrt(2.0 * GRAV_CONSTANT * mass_in_grams / radius_in_cm));
+
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *    This is Fogg's eq.16.  The molecular weight (usually assumed to be N2)    */
 /// *    is used as the basis of the Root Mean Square (RMS) velocity of the        */
@@ -353,13 +303,11 @@ func volume_radius(mass: Double, density: Double) -> Double {
 /// *    Orbital radius is in A.U.(ie: in units of the earth's orbital radius).    */
 /// *--------------------------------------------------------------------------*/
 //
-// long double rms_vel(long double molecular_weight, long double exospheric_temp)
-// {
-//    return(sqrt((3.0 * MOLAR_GAS_CONST * exospheric_temp) / molecular_weight)
-//           * CM_PER_METER);
-// }
-//
-//
+func rms_vel(molecular_weight: Double, exospheric_temp: Double) -> Double {
+    return(sqrt((3.0 * MOLAR_GAS_CONST * exospheric_temp) / molecular_weight)
+               * CM_PER_METER)
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     This function returns the smallest molecular weight retained by the    */
 /// *    body, which is useful for determining the atmosphere composition.        */
@@ -367,85 +315,73 @@ func volume_radius(mass: Double, density: Double) -> Double {
 /// *    kilometers.                                                                */
 /// *--------------------------------------------------------------------------*/
 //
-// long double molecule_limit(mass, equat_radius, exospheric_temp)
-// long double mass, equat_radius, exospheric_temp;
-// {
-//    long double esc_velocity = escape_vel(mass,equat_radius);
-//
-//    return ((3.0 * MOLAR_GAS_CONST * exospheric_temp) /
-//            (pow2((esc_velocity/ GAS_RETENTION_THRESHOLD) / CM_PER_METER)));
-//
-// }
-//
+func molecule_limit(mass: Double, equat_radius: Double, exospheric_temp: Double) -> Double {
+    let esc_velocity = escape_vel(mass: mass, radius: equat_radius)
+
+    return (3.0 * MOLAR_GAS_CONST * exospheric_temp) / pow2( (esc_velocity/GAS_RETENTION_THRESHOLD) / CM_PER_METER)
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     This function calculates the surface acceleration of a planet.     The    */
 /// *    mass is in units of solar masses, the radius in terms of km, and the    */
 /// *    acceleration is returned in units of cm/sec2.                            */
 /// *--------------------------------------------------------------------------*/
 //
-// long double acceleration(mass, radius)
-// long double mass, radius;
-// {
-//    return(GRAV_CONSTANT * (mass * SOLAR_MASS_IN_GRAMS) /
-//                       pow2(radius * CM_PER_KM));
-// }
-//
-//
+func acceleration(mass: Double, radius: Double) -> Double {
+    return(GRAV_CONSTANT * (mass * SOLAR_MASS_IN_GRAMS) /
+                       pow2(radius * CM_PER_KM))
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     This function calculates the surface gravity of a planet.    The            */
 /// *    acceleration is in units of cm/sec2, and the gravity is returned in        */
 /// *    units of Earth gravities.                                                */
 /// *--------------------------------------------------------------------------*/
 //
-// long double gravity(acceleration)
-// long double acceleration;
-// {
-//    return(acceleration / EARTH_ACCELERATION);
-// }
-//
+func gravity(acceleration: Double) -> Double {
+    acceleration / EARTH_ACCELERATION
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *    This implements Fogg's eq.17.  The 'inventory' returned is unitless.    */
 /// *--------------------------------------------------------------------------*/
-//
-// long double vol_inventory(mass, escape_vel, rms_vel, stellar_mass, zone,
-//                     greenhouse_effect, accreted_gas)
-// long double mass, escape_vel, rms_vel, stellar_mass;
-// int zone, greenhouse_effect, accreted_gas;
-// {
-//    long double velocity_ratio, proportion_const, temp1, temp2, earth_units;
-//
-//    velocity_ratio = escape_vel / rms_vel;
-//    if (velocity_ratio >= GAS_RETENTION_THRESHOLD)
-//    {
-//        switch (zone) {
-//            case 1:
-//                proportion_const = 140000.0;    /* 100 -> 140 JLB */
-//                break;
-//            case 2:
-//                proportion_const = 75000.0;
-//                break;
-//            case 3:
-//                proportion_const = 250.0;
-//                break;
-//            default:
-//                proportion_const = 0.0;
-//                printf("Error: orbital zone not initialized correctly!\n");
-//                break;
-//        }
-//        earth_units = mass * SUN_MASS_IN_EARTH_MASSES;
-//        temp1 = (proportion_const * earth_units) / stellar_mass;
-//        temp2 = about(temp1,0.2);
-//        temp2 = temp1;
-//        if (greenhouse_effect || accreted_gas)
-//            return(temp2);
-//        else
-//            return(temp2 / 140.0);    /* 100 -> 140 JLB */
-//    }
-//    else
-//        return(0.0);
-// }
-//
-//
+
+func vol_inventory(mass: Double, escape_vel: Double, rms_vel: Double, stellar_mass: Double, zone: Int,
+              greenhouse_effect: Bool, accreted_gas: Bool, prng: RNGWrapper<Xoshiro>) -> Double {
+    // proportion_const, temp1, temp2, earth_units;
+    //
+    let velocity_ratio = escape_vel / rms_vel
+    let proportion_const: Double
+    if (velocity_ratio >= GAS_RETENTION_THRESHOLD) {
+        switch zone {
+        case 1:
+            proportion_const = 140000.0    /* 100 -> 140 JLB */
+            break
+        case 2:
+            proportion_const = 75000.0
+            break
+        case 3:
+            proportion_const = 250.0
+            break
+        default:
+            proportion_const = 0.0
+            print("Error: orbital zone not initialized correctly!\n")
+            break
+        }
+        
+        let earth_units = mass * SUN_MASS_IN_EARTH_MASSES
+        let temp1 = (proportion_const * earth_units) / stellar_mass
+        let temp2 = prng.about(temp1, variation: 0.2)
+        
+        if (greenhouse_effect || accreted_gas) {
+            return(temp2)
+        } else {
+            return(temp2 / 140.0)   /* 100 -> 140 JLB */
+        }
+    }
+    return(0.0)
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *    This implements Fogg's eq.18.  The pressure returned is in units of        */
 /// *    millibars (mb).     The gravity is in units of Earth gravities, the radius */
@@ -455,15 +391,11 @@ func volume_radius(mass: Double, density: Double) -> Double {
 /// *    fudge factor (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) to correct for that    */
 /// *--------------------------------------------------------------------------*/
 //
-// long double pressure(volatile_gas_inventory, equat_radius, gravity)
-// long double volatile_gas_inventory, equat_radius, gravity;
-// {
-//    equat_radius = KM_EARTH_RADIUS / equat_radius;
-//    return(volatile_gas_inventory * gravity *
-//            (EARTH_SURF_PRES_IN_MILLIBARS / 1000.) /
-//            pow2(equat_radius));
-// }
-//
+func pressure(volatile_gas_inventory: Double, equat_radius: Double, gravity: Double) -> Double {
+        let equat_radius_in_earths = KM_EARTH_RADIUS / equat_radius
+        return(volatile_gas_inventory * gravity * (EARTH_SURF_PRES_IN_MILLIBARS / 1000.0) / pow2(equat_radius_in_earths))
+}
+
 /// *--------------------------------------------------------------------------*/
 /// *     This function returns the boiling point of water in an atmosphere of    */
 /// *     pressure 'surf_pressure', given in millibars.    The boiling point is    */
