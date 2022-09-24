@@ -21,6 +21,7 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-system", from: "1.0.0"),
+        .package(url: "https://github.com/johnsundell/plot.git", from: "0.9.0"),
     ],
     targets: [
         .executableTarget(
@@ -33,7 +34,9 @@ let package = Package(
         ),
         .target(
             name: "SolarSystem",
-            dependencies: [],
+            dependencies: [
+                .product(name: "Plot", package: "plot"),
+            ],
             swiftSettings: [
 //                .unsafeFlags(["-Xfrontend", "-warn-concurrency", "-Xfrontend", "-enable-actor-data-race-checks"])
                 .unsafeFlags(["-Xfrontend", "-strict-concurrency=complete"])
