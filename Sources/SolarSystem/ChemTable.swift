@@ -2,6 +2,8 @@
 //  ChamTable.swift
 //
 
+import Foundation
+
 // From Keris
 
 final class ChemTableEntry {

@@ -208,7 +208,6 @@ public struct SolarSystem {}
 func generate_stellar_system(sun: inout Sun,
                              use_seed_system: Bool,
                              seed_system: Planet?,
-                             flag_char: String,
                              sys_no: Int,
                              system_name: String,
                              outer_planet_limit: Double,
@@ -259,7 +258,6 @@ func generate_stellar_system(sun: inout Sun,
     generate_planets(sun: sun,
                      innermost_planet: innermost_planet,
                      random_tilt: !use_seed_system,
-                     flag_char: flag_char,
                      sys_no: sys_no,
                      system_name: system_name,
                      do_gases: do_gases,
@@ -392,6 +390,7 @@ func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
             }
         }
     }
+
     // void calculate_gases(sun*            sun,
     //                     planet_pointer    planet,
     //                     char*            planet_id)
@@ -1184,8 +1183,8 @@ func generate_planet(planet: Planet,
 // }
 
 // NOTE(heckj): implementation/porting notes: mostly just collects counts and updates an overall count of what's been generated
-// for the cases of searching for generations that result in habital planets.
-func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inout [PlanetType: Int], habital_count: inout Int) {
+// for the cases of searching for generations that result in habitable planets.
+func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inout [PlanetType: Int], habital_count: inout Int, earthlike_count: inout Int) {
     if let a_count = counts[planet.planet_type] {
         counts[planet.planet_type] = a_count + 1
     } else {
@@ -1324,7 +1323,7 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
        planet.planet_type != .water,
        breathe == .breathable
     {
-//            earthlike++;
+        earthlike_count += 1
         print("EARTHLIKE: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
 
     } else if breathe == .breathable,
@@ -1590,7 +1589,6 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
 func generate_planets(sun: Sun,
                       innermost_planet: Planet?,
                       random_tilt: Bool,
-                      flag_char _: String,
                       sys_no _: Int,
                       system_name: String,
                       do_gases: Bool,
@@ -1598,6 +1596,7 @@ func generate_planets(sun: Sun,
                       prng: RNGWrapper<Xoshiro>)
 {
     var habitable_count = 0
+    var earthlike_count = 0
     var type_counts: [PlanetType: Int] = [:]
     var planet: Planet? = innermost_planet
     var planet_no = 1
@@ -1625,7 +1624,7 @@ func generate_planets(sun: Sun,
          *    so we can count and log them and such
          */
 
-        check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false, counts: &type_counts, habital_count: &habitable_count)
+        check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false, counts: &type_counts, habital_count: &habitable_count, earthlike_count: &earthlike_count)
         var moon: Planet? = concrete_planet.first_moon
         var moons = 1
 
@@ -1635,7 +1634,7 @@ func generate_planets(sun: Sun,
             }
 
             let moon_id = "\(planet_id).\(moons)"
-            check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true, counts: &type_counts, habital_count: &habitable_count)
+            check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true, counts: &type_counts, habital_count: &habitable_count, earthlike_count: &earthlike_count)
             if concrete_moon.next_planet != nil {
                 moon = concrete_moon.next_planet
                 moons += 1
@@ -1698,36 +1697,6 @@ func generate_planets(sun: Sun,
 //    }
 // }
 
-/*
- *  Sort a ChemTable by decreasing abundance.
- */
-
-// static int diminishing_abundance(const void *xp, const void *yp)
-// {
-//    const ChemTable *x = (ChemTable *) xp;
-//    const ChemTable *y = (ChemTable *) yp;
-//    long double    xx = x->abunds * x->abunde;
-//    long double    yy = y->abunds * y->abunde;
-//
-//    if (xx < yy)
-//        return +1;
-//    return (xx > yy ? -1 : 0);
-// }
-
-/*
- *  Sort a ChemTable by decreasing pressure.
- */
-
-// static int diminishing_pressure(const void *xp, const void *yp)
-// {
-//    const gas *x = (gas *) xp;
-//    const gas *y = (gas *) yp;
-//
-//    if (x->surf_pressure < y->surf_pressure)
-//        return +1;
-//    return (x->surf_pressure > y->surf_pressure ? -1 : 0);
-// }
-
 struct FunctionFlags {
     enum OutputFormat {
         case html
@@ -1754,10 +1723,12 @@ struct FunctionFlags {
     var only_multi_habitable: Bool
     var only_jovian_habitable: Bool
     var only_earthlike: Bool
+
     var output_path: String
     var filename_argument: String
     var output_format: OutputFormat
     var graphic_format: GraphicFormat
+
     var system_name: String
     var mass_argument: Double
     var seed_argument: UInt64
@@ -1772,25 +1743,364 @@ enum Actions {
     case generate //    - Generate random system(s)
     case listGases //    - List the gas table
     case listCatalog //    - List the stars in a catalog
-    case listCatalogAsHTML //  - For creating a <FORM>
+    // case listCatalogAsHTML //  - For creating a <FORM>
     case sizeCheck //  - List sizes of various types
     case listVerbosity //  - List values of the -v option
 }
 
-func stargen(flags _: FunctionFlags, action _: Actions) {}
+//  main entrance point to invoking generation or exploration
+func stargen(flags: FunctionFlags, action: Actions) {
+    var sun = Sun(luminosity: 0, mass: 0, life: 0, age: 0, r_ecosphere: 0, name: "")
+    let min_mass = 0.4
+    let inc_mass = 0.05
+    let max_mass = 2.35
+    var system_count = 1
+    var seed_increment = 1
 
-//    int                do_catalog            = ((cat_arg != NULL) && (sys_no_arg == 0));
-//    int                catalog_count        = 0;
-//    int                do_gases            = (flags_arg & fDoGases) != 0;
-//    int             use_solar_system    = (flags_arg & fUseSolarsystem) != 0;
-//    int                reuse_solar_system    = (flags_arg & fReuseSolarsystem) != 0;
-//    int                use_known_planets    = (flags_arg & fUseKnownPlanets) != 0;
-//    int                no_generate            = (flags_arg & fNoGenerate) != 0;
-//    int                do_moons            = (flags_arg & fDoMoons) != 0;
-//    int                only_habitable        = (flags_arg & fOnlyHabitable) != 0;
-//    int                only_multi_habitable= (flags_arg & fOnlyMultiHabitable) != 0;
-//    int                only_jovian_habitable=(flags_arg & fOnlyJovianHabitable) != 0;
-//    int                only_earthlike        = (flags_arg & fOnlyEarthlike) != 0;
+    let thumbnail_file = "Thumbnails"
+    let file_name = "StarGen"
+    let csv_file_name = "StarGen.csv"
+    var prng = RNGWrapper(Xoshiro(seed: flags.seed_argument))
+
+    switch action {
+    case .listGases:
+        var total = 0.0
+
+        for gas in gases.sorted(by: { gasA, gasB in
+            gasA.abunds > gasB.abunds
+        }) {
+            if gas.weight >= 5.0, gas.max_ipp < 1e9 { // exclude H and He from max_ipp calculation
+                total += gas.max_ipp
+            }
+
+            print(" \(gas.num): \(gas.symbol) - \(gas.name) \(gas.num == AN_O ? MIN_O2_IPP : 0.0) mb - \(gas.max_ipp) mb")
+        }
+        print("Total Max ipp: \(total)")
+        print("Max pressure: \(MAX_HABITABLE_PRESSURE) atm")
+
+    case .listCatalog:
+        for star in flags.catalog_argument.stars {
+            print("\(star.name) M: \(star.mass), L: \(star.luminosity)")
+        }
+
+    case .sizeCheck:
+        let temp = est_temp(ecosphere_radius: 1.0, orb_radius: 1.0, albedo: EARTH_ALBEDO)
+        print("Size of a double: \(MemoryLayout<Double>.size)")
+        print("Earth Est Temp: \(temp) K, \(temp - FREEZING_POINT_OF_WATER) C, Earth rel: \(temp - EARTH_AVERAGE_KELVIN) C ")
+
+    case .listVerbosity:
+        let msg = """
+        Verbosity flags are hexidecimal numbers: \
+        \t0001\tEarthlike count \
+        \t0002\tTrace Min/Max \
+        \t0004\tList Earthlike \
+        \t \
+        \t0010\tList Gases \
+        \t0020\tTrace temp iterations \
+        \t0040\tGas lifetimes \
+        \t0080\tList loss of accreted gas mass \
+        \t \
+        \t0100\tInjecting, collision \
+        \t0200\tChecking..., Failed... \
+        \t0400\tList binary info \
+        \t0800\tList accreted atmospheres \
+        \t \
+        \t1000\tMoons (experimental) \
+        \t2000\tOxygen poisoned (experimental) \
+        \t4000\tTrace gas percentages \
+        \t8000\tList Jovians in the ecosphere \
+        \t \
+        \t10000\tList type diversity \
+        \t20000\tTrace Surface temp interactions
+        """
+        print(msg)
+    case .generate:
+        let flag_seed = flags.seed_argument
+        let sun_mass = flags.mass_argument
+        system_count = flags.count_argument
+        seed_increment = flags.incr_argument
+        var seed_planets: Planet?
+        let dust_density_coeff: Double
+        var use_seed_system = false
+
+        if flags.ratio_argument > 0.0 {
+            dust_density_coeff = DUST_DENSITY_COEFF * flags.ratio_argument
+        } else {
+            dust_density_coeff = DUST_DENSITY_COEFF
+        }
+
+        if flags.reuse_solar_system {
+            system_count = 1 + Int((max_mass - min_mass) / inc_mass)
+            sun.luminosity = 1
+            sun.mass = 1
+            sun.life = 1e10
+            sun.age = 5e9
+            sun.r_ecosphere = 1
+        } else if flags.do_catalog {
+            system_count = flags.catalog_argument.count
+        }
+
+        for iteration in 1 ... system_count {
+            let system_name: String
+            let designation: String
+            let outer_limit: Double
+
+            if flags.do_catalog {
+                sun.mass = flags.catalog_argument.stars[iteration].mass
+                sun.luminosity = flags.catalog_argument.stars[iteration].luminosity
+                sun.name = flags.catalog_argument.stars[iteration].name
+
+                system_name = flags.catalog_argument.stars[iteration].desig
+                designation = flags.catalog_argument.stars[iteration].desig
+
+                if flags.catalog_argument.stars[iteration].m2 > 0.001 {
+                    /*
+                     *    The following is Holman & Wiegert's equation 1 from
+                     *    Long-Term Stability of Planets in Binary Systems
+                     *    The Astronomical Journal, 117:621-628, Jan 1999
+                     */
+                    let m1 = sun.mass
+                    let m2 = flags.catalog_argument.stars[iteration].m2
+                    let mu = m2 / (m1 + m2)
+                    let e = flags.catalog_argument.stars[iteration].e
+                    let a = flags.catalog_argument.stars[iteration].a
+                    outer_limit = (0.464 + (-0.380 * mu) + (-0.631 * e) +
+                        (0.586 * mu * e) + (0.150 * pow2(e)) +
+                        (-0.198 * mu * pow2(e))) * a
+                } else {
+                    outer_limit = 0.0
+                }
+            } else if flags.reuse_solar_system {
+                system_name = "Earth-M\(earth.mass * SUN_MASS_IN_EARTH_MASSES)"
+                designation = system_name
+                outer_limit = 0.0
+            } else if !flags.system_name.isEmpty {
+                system_name = flags.system_name
+                designation = system_name
+                outer_limit = 0.0
+            } else {
+                system_name = "SolarSystem \(flags.seed_argument)-\(sun.mass)"
+                designation = system_name
+                outer_limit = 0.0
+            }
+            sun.name = system_name
+
+            var earthlike = 0
+            var habitable = 0
+            var habitable_jovians = 0
+            var type_counts: [PlanetType: Int] = [:]
+            if flags.reuse_solar_system || flags.use_solar_system {
+                seed_planets = mercury
+                use_seed_system = true
+            }
+            generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng)
+        }
+    }
+
+//
+//            {
+//                planet_pointer    planet;
+//                int             counter;
+//                int                wt_type_count = type_count;
+//                int                norm_type_count = 0;
+//
+//                if (type_counts[3]  > 0)    wt_type_count += 20;    // Terrestrial
+//                if (type_counts[8]  > 0)    wt_type_count += 18;    // Water
+//                if (type_counts[2]  > 0)    wt_type_count += 16;    // Venusian
+//                if (type_counts[7]  > 0)    wt_type_count += 15;    // Martian
+//                if (type_counts[9]  > 0)    wt_type_count += 14;    // Ice
+//                if (type_counts[10] > 0)    wt_type_count += 13;    // Asteroids
+//                if (type_counts[4]  > 0)    wt_type_count += 12;    // Gas Dwarf
+//                if (type_counts[5]  > 0)    wt_type_count += 11;    // Sub_Jovian
+//                if (type_counts[11] > 0)    wt_type_count += 10;    // 1-Face
+//                if (type_counts[1]  > 0)    wt_type_count += 3;        // Rock
+//                if (type_counts[6]  > 0)    wt_type_count += 2;        // Jovian
+//                if (type_counts[0]  > 0)    wt_type_count += 1;        // Unknown
+//
+//                for (planet=innermost_planet, counter=0;
+//                    planet != NULL;
+//                    planet=planet->next_planet, counter++)
+//                    ;
+//
+//                norm_type_count = wt_type_count - (counter - type_count);
+//
+//                if (max_type_count < norm_type_count)
+//                {
+//                    max_type_count = norm_type_count;
+//
+//                    if (flag_verbose & 0x10000)
+//                        fprintf (sgErr, "System %ld - %s (-s%ld -%c%d) has %d types out of %d planets. [%d]\n",
+//                                flag_seed,
+//                                system_name,
+//                                flag_seed,
+//                                flag_char,
+//                                sys_no,
+//                                type_count,
+//                                counter,
+//                                norm_type_count);
+//                }
+//            }
+//
+//            total_habitable += habitable;
+//            total_earthlike += earthlike;
+//
+//            if ((!(only_habitable || only_multi_habitable || only_jovian_habitable || only_earthlike))
+//             || (only_habitable && (habitable > 0))
+//             || (only_multi_habitable && (habitable > 1))
+//             || (only_jovian_habitable && (habitable_jovians > 0))
+//             || (only_earthlike && (earthlike > 0))
+//             )
+//            {
+//                char    system_url[300] = "";
+//                char    svg_url[300]    = "";
+//
+//                if (sgOut == NULL)
+//                {
+//                    sprintf (system_url,
+//                             "%s%s%s%s",
+//                             url_path,
+//                             subdir,
+//                             file_name,
+//                             ".html");
+//
+//                    sprintf (svg_url,
+//                             "%s%s%s%s",
+//                             url_path,
+//                             subdir,
+//                             file_name,
+//                             ".svg");
+//                }
+//                else
+//                {
+//
+//                    sprintf (system_url,
+//                             "/cgi-bin/StarGen.pl?Catalog=%s&Dole=%d&SolStation=%d&Mass=%LG&Output=all&Seed=%ld&Count=1&Incr=1&Gas=%s&Moon=%s&SVG=%s",
+//                             (cat_arg == NULL) ? "none" : cat_arg->arg,
+//                             sys_no,
+//                             sys_no,
+//                             sun.mass,
+//                             flag_seed,
+//                             (do_gases)                    ? "on" : "off",    // one of ("on", "off")
+//                             (do_moons)                    ? "on" : "off",    // one of ("on", "off")
+//                             (graphic_format == gfSVG)    ? "on" : "off"    // one of ("on", "off")
+//                            );
+//
+//                    sprintf (svg_url,
+//                             "/cgi-bin/StarGen.pl?Catalog=%s&Dole=%d&SolStation=%d&Mass=%LG&Output=all&Seed=%ld&Count=1&Incr=1&Gas=%s&Moon=%s&SVG=%s&DoIt=SVG",
+//                             (cat_arg == NULL) ? "none" : cat_arg->arg,
+//                             sys_no,
+//                             sys_no,
+//                             sun.mass,
+//                             flag_seed,
+//                             (do_gases)                    ? "on" : "off",    // one of ("on", "off")
+//                             (do_moons)                    ? "on" : "off",    // one of ("on", "off")
+//                             (graphic_format == gfSVG)    ? "on" : "off"    // one of ("on", "off")
+//                            );
+//                }
+//
+//                switch (out_format)
+//                {
+//                    case ffSVG:
+//                        create_svg_file (sgOut, innermost_planet, path, file_name, ".svg", prognam);
+//                    break;
+//
+//                    case ffHTML:
+//                        if ((graphic_format == gfSVG) && (sgOut == NULL))
+//                        {
+//                            create_svg_file (NULL, innermost_planet, path, file_name, ".svg", prognam);
+//                        }
+//
+//                        if (thumbnails != NULL)
+//                            html_thumbnails(innermost_planet, thumbnails,
+//                                            system_name,
+//                                            url_path, system_url, svg_url, file_name,
+//                                            FALSE, TRUE, FALSE, do_moons, graphic_format);
+//
+//                         if ((system_count == 1) || (sgOut == NULL))
+//                         {
+//                            if ((system_count == 1) && (sgOut != NULL))
+//                                html_file = open_html_file (system_name, flag_seed, path, url_path, file_name, ".html",
+//                                                            prognam, sgOut);
+//                            else
+//                                html_file = open_html_file (system_name, flag_seed, path, url_path, file_name, ".html",
+//                                                            prognam, NULL);
+//
+//                            if (NULL != html_file)
+//                            {
+//                                html_thumbnails(innermost_planet, html_file,
+//                                                system_name,
+//                                                url_path, system_url, svg_url, file_name,
+//                                                TRUE, FALSE, TRUE, do_moons, graphic_format);
+//                                html_describe_system(innermost_planet, do_gases, url_path, html_file);
+//                                close_html_file(html_file);
+//                            }
+//                            else
+//                            {
+//                                fprintf(sgErr, "Could not open file %s%s%s\n",
+//                                        path, file_name, ".html");
+//                                exit(0);
+//                            }
+//                        }
+//                    break;
+//
+//                    case ffTEXT:
+//                        text_describe_system(innermost_planet, do_gases, flag_seed);
+//                    break;
+//
+//                    case ffCSV:
+//                    case ffCSVdl:
+//                        if (csv_file != NULL)
+//                            csv_describe_system(csv_file, innermost_planet, do_gases, flag_seed);
+//                    break;
+//
+//                    case ffCELESTIA:
+//                        if (in_celestia != 0)
+//                        {
+//                            if (has_known_planets && !use_known_planets)
+//                                fprintf (sgErr, "Skipping %s -- Has planets in Celestia already\n",
+//                                        designation);
+//                            else
+//                                celestia_describe_system(innermost_planet, designation);
+//                        }
+//                    break;
+//                }
+//                if ((habitable > 1) &&
+//                    (flag_verbose & 0x0001))
+//                    fprintf (sgErr, "System %ld - %s (-s%ld -%c%d) has %d planets with breathable atmospheres.\n",
+//                            flag_seed,
+//                            system_name,
+//                            flag_seed,
+//                            flag_char,
+//                            sys_no,
+//                            habitable);
+//            }
+
+//        if ((flag_verbose & 0x0001) || (flag_verbose & 0x0002))
+//        {
+//            fprintf (sgErr, "Earthlike planets: %d\n", total_earthlike);
+//            fprintf (sgErr, "Breathable atmospheres: %d\n", total_habitable);
+//            fprintf (sgErr, "Breathable g range: %4.2Lf -  %4.2Lf\n",
+//                     min_breathable_g,
+//                     max_breathable_g);
+//            fprintf (sgErr, "Terrestrial g range: %4.2Lf -  %4.2Lf\n",
+//                     min_breathable_terrestrial_g,
+//                     max_breathable_terrestrial_g);
+//            fprintf (sgErr, "Breathable pressure range: %4.2Lf -  %4.2Lf\n",
+//                     min_breathable_p,
+//                     max_breathable_p);
+//            fprintf (sgErr, "Breathable temp range: %+.1Lf C -  %+.1Lf C\n",
+//                     min_breathable_temp - EARTH_AVERAGE_KELVIN,
+//                     max_breathable_temp - EARTH_AVERAGE_KELVIN);
+//            fprintf (sgErr, "Breathable illumination range: %4.2Lf -  %4.2Lf\n",
+//                     min_breathable_l,
+//                     max_breathable_l);
+//            fprintf (sgErr, "Terrestrial illumination range: %4.2Lf -  %4.2Lf\n",
+//                     min_breathable_terrestrial_l,
+//                     max_breathable_terrestrial_l);
+//            fprintf (sgErr, "Max moon mass: %4.2Lf\n",
+//                     max_moon_mass * SUN_MASS_IN_EARTH_MASSES);
+//        }
+}
 
 // int stargen (actions        action,
 //             char            flag_char,
