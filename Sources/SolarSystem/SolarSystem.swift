@@ -1,10 +1,6 @@
 import Foundation
 
-public struct SolarSystem {
-    public private(set) var text = "Hello, World!"
-
-    public init() {}
-}
+public struct SolarSystem {}
 
 /*
  *    StarGen main API
@@ -1119,7 +1115,158 @@ func generate_planet(planet: Planet,
 //
 // }
 
-func check_planet(planet _: Planet, planet_id _: String, is_moon _: Bool) {}
+// NOTE(heckj): implementation/porting notes: mostly just collects counts and updates an overall count of what's been generated
+// for the cases of searching for generations that result in habital planets.
+func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inout [PlanetType: Int], habital_count: inout Int) {
+    if let a_count = counts[planet.planet_type] {
+        counts[planet.planet_type] = a_count + 1
+    } else {
+        counts[planet.planet_type] = 1
+    }
+
+    var min_breathable_terrestrial_g = 1000.0
+    var min_breathable_g = 1000.0
+    var max_breathable_terrestrial_g = 0.0
+    var max_breathable_g = 0.0
+    var min_breathable_temp = 1000.0
+    var max_breathable_temp = 0.0
+    var min_breathable_p = 100_000.0
+    var max_breathable_p = 0.0
+    var min_breathable_terrestrial_l = 1000.0
+    var min_breathable_l = 1000.0
+    var max_breathable_terrestrial_l = 0.0
+    var max_breathable_l = 0.0
+    var max_moon_mass = 0.0
+
+    /* Check for and list planets with breathable atmospheres */
+
+    let breathe: Breathability = breathability(planet: planet)
+
+    if (breathe == .breathable) &&
+        (!planet.resonant_period) && // Option needed?
+        (Int(planet.day) != Int(planet.orb_period * 24.0))
+    {
+        var list_it = false
+        let illumination = pow2(1.0 / planet.a) * planet.sun!.luminosity
+
+        habital_count += 1
+
+        if min_breathable_temp > planet.surf_temp {
+            min_breathable_temp = planet.surf_temp
+            list_it = true
+        }
+
+        if max_breathable_temp < planet.surf_temp {
+            max_breathable_temp = planet.surf_temp
+            list_it = true
+        }
+
+        if min_breathable_g > planet.surf_grav {
+            min_breathable_g = planet.surf_grav
+            list_it = true
+        }
+
+        if max_breathable_g < planet.surf_grav {
+            max_breathable_g = planet.surf_grav
+            list_it = true
+        }
+
+        if min_breathable_l > illumination {
+            min_breathable_l = illumination
+            list_it = true
+        }
+
+        if max_breathable_l < illumination {
+            max_breathable_l = illumination
+            list_it = true
+        }
+
+        if planet.planet_type == .terrestrial {
+            if min_breathable_terrestrial_g > planet.surf_grav {
+                min_breathable_terrestrial_g = planet.surf_grav
+                list_it = true
+            }
+
+            if max_breathable_terrestrial_g < planet.surf_grav {
+                max_breathable_terrestrial_g = planet.surf_grav
+                list_it = true
+            }
+
+            if min_breathable_terrestrial_l > illumination {
+                min_breathable_terrestrial_l = illumination
+                list_it = true
+            }
+
+            if max_breathable_terrestrial_l < illumination {
+                max_breathable_terrestrial_l = illumination
+                list_it = true
+            }
+        }
+
+        if min_breathable_p > planet.surf_pressure {
+            min_breathable_p = planet.surf_pressure
+            list_it = true
+        }
+
+        if max_breathable_p < planet.surf_pressure {
+            max_breathable_p = planet.surf_pressure
+            list_it = true
+        }
+
+        if list_it {
+            print("\(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\tl=\(illumination)\t\(planet_id)")
+        }
+    }
+
+    if is_moon && max_moon_mass < planet.mass {
+        max_moon_mass = planet.mass
+        print("\(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
+    }
+
+    if planet.dust_mass * SUN_MASS_IN_EARTH_MASSES >= 0.0006,
+       planet.gas_mass * SUN_MASS_IN_EARTH_MASSES >= 0.0006,
+       planet.planet_type != .gasgiant,
+       planet.planet_type != .subgasgiant
+    {
+        let core_size = Int((50.0 * planet.core_radius) / planet.radius)
+
+        if core_size <= 49 {
+            print("\(planet.planet_type)\tp=\(planet.core_radius)\tr=\(planet.radius)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\t\(planet_id)\t\(50 - core_size)")
+        }
+    }
+
+    let rel_temp = (planet.surf_temp - FREEZING_POINT_OF_WATER) - EARTH_AVERAGE_CELSIUS
+    let seas = (planet.hydrosphere * 100.0)
+    let clouds = (planet.cloud_cover * 100.0)
+    let pressure = (planet.surf_pressure / EARTH_SURF_PRES_IN_MILLIBARS)
+    let ice = (planet.ice_cover * 100.0)
+    let gravity = planet.surf_grav
+
+    if gravity >= 0.8,
+       gravity <= 1.2,
+       rel_temp >= -2.0,
+       rel_temp <= 3.0,
+       ice <= 10.0,
+       pressure >= 0.5,
+       pressure <= 2.0,
+       clouds >= 40.0,
+       clouds <= 80.0,
+       seas >= 50.0,
+       seas <= 80.0,
+       planet.planet_type != .water,
+       breathe == .breathable
+    {
+//            earthlike++;
+        print("EARTHLIKE: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
+
+    } else if breathe == .breathable,
+              gravity > 1.3,
+              habital_count > 1,
+              (rel_temp < -2.0) || (ice > 10.0)
+    {
+        print("Sphinx-like: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
+    }
+}
 
 // void check_planet(planet_pointer    planet,
 //                  char*                planet_id,
@@ -1382,6 +1529,8 @@ func generate_planets(sun: Sun,
                       do_moons: Bool,
                       prng: RNGWrapper<Xoshiro>)
 {
+    var habitable_count = 0
+    var type_counts: [PlanetType: Int] = [:]
     var planet: Planet? = innermost_planet
     var planet_no = 1
 
@@ -1408,7 +1557,7 @@ func generate_planets(sun: Sun,
          *    so we can count and log them and such
          */
 
-        check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false)
+        check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false, counts: &type_counts, habital_count: &habitable_count)
         var moon: Planet? = concrete_planet.first_moon
         var moons = 1
 
@@ -1418,7 +1567,7 @@ func generate_planets(sun: Sun,
             }
 
             let moon_id = "\(planet_id).\(moons)"
-            check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true)
+            check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true, counts: &type_counts, habital_count: &habitable_count)
             if concrete_moon.next_planet != nil {
                 moon = concrete_moon.next_planet
                 moons += 1

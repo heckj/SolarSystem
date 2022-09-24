@@ -24,6 +24,8 @@ enum PlanetType {
     case face
 }
 
+extension PlanetType: CaseIterable {}
+
 // typedef enum planet_type {
 //    tUnknown,
 //    tRock,
