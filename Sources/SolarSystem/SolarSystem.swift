@@ -7,12 +7,12 @@ public struct SolarSystem {}
  */
 //
 // typedef    enum actions {                        // Callable StarGen can:
-//    aGenerate,                                //    - Generate randon system(s)
-//    aListGases,                                //    - List the gas table
-//    aListCatalog,                            //    - List the stars in a catalog
-//    aListCatalogAsHTML,                        //  - For creating a <FORM>
-//    aSizeCheck,                                //  - List sizes of various types
-//    aListVerbosity,                            //  - List values of the -v option
+//    aGenerate,
+//    aListGases,
+//    aListCatalog,
+//    aListCatalogAsHTML,
+//    aSizeCheck,
+//    aListVerbosity,
 // } actions;
 //
 // int stargen (actions        action,            // One of the above
@@ -323,7 +323,75 @@ func generate_stellar_system(sun: inout Sun,
 //                     do_moons);
 // }
 
-func calculate_gases(sun _: Sun, planet _: Planet, planet_id _: String) {
+func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
+    if planet.surf_pressure > 0 {
+        var total_amount: Double = 0
+        let pressure: Double = planet.surf_pressure / MILLIBARS_PER_BAR
+        var n: Int = 0
+        for gas in gases {
+            let yp = gas.boil / (373.0 * ((log(pressure + 0.001) / -5050.5) + (1.0 / 373.0)))
+            if yp >= 0, yp < planet.low_temp, gas.weight >= planet.molec_weight {
+                let vrms = rms_vel(molecular_weight: gas.weight, exospheric_temp: planet.exospheric_temp)
+                let pvrms = pow(1 / (1 + vrms / planet.esc_velocity), sun.age / 1e9)
+                var abund = gas.abunds
+                var react = 1.0
+                var fract = 1.0
+                var pres2 = 1.0
+
+                if gas.symbol == "Ar" {
+                    react = 0.15 * sun.age / 4e9
+                } else if gas.symbol == "He" {
+                    abund = abund * (0.001 + (planet.gas_mass / planet.mass))
+                    pres2 = (0.75 + pressure)
+                    react = pow(1 / (1 + gas.reactivity), sun.age / 2e9 * pres2)
+                } else if gas.symbol == "O" || gas.symbol == "O2", sun.age > 2e9, planet.surf_temp > 270, planet.surf_temp < 400 {
+                    /*    pres2 = (0.65 + pressure/2);            Breathable - M: .55-1.4     */
+                    pres2 = (0.89 + pressure / 4) /*    Breathable - M: .6 -1.8     */
+                    react = pow(1 / (1 + gas.reactivity), pow(sun.age / 2e9, 0.25) * pres2)
+
+                } else if gas.symbol == "CO2", sun.age > 2e9, planet.surf_temp > 270, planet.surf_temp < 400 {
+                    pres2 = (0.75 + pressure)
+                    react = pow(1 / (1 + gas.reactivity), pow(sun.age / 2e9, 0.5) * pres2)
+                    react *= 1.5
+                } else {
+                    pres2 = (0.75 + pressure)
+                    react = pow(1 / (1 + gas.reactivity), sun.age / 2e9 * pres2)
+                }
+
+                fract = (1 - (planet.molec_weight / gas.weight))
+
+                let amount = abund * pvrms * react * fract
+                if amount > 0 {
+                    n += 1
+                }
+                total_amount += amount
+                planet.atmosphere.append(Gas(gas, surf_pressure: amount)) // stash the amount into surf_pressure for the
+                // gas, to be updated after we've computed the total amount of gas to arrange the appropriate surface
+                // pressures.
+                if ["O", "N", "Ar", "He", "CO2"].contains(gas.symbol) {
+                    print("\(planet.mass * SUN_MASS_IN_EARTH_MASSES) \(gas.symbol), \(amount) = \(abund) * \(pvrms) * \(react) * \(pres2) * \(fract) (\(planet.gas_mass / planet.mass * 100.0)")
+                }
+            }
+        } // foreach gas
+
+        // update
+        for gas in planet.atmosphere {
+            let placeholder_amount = gas.surf_pressure
+            gas.surf_pressure = planet.surf_pressure * placeholder_amount / total_amount
+
+            if gas.type.num == AN_O, inspired_partial_pressure(surf_pressure: planet.surf_pressure, gas_pressure: gas.surf_pressure) > gas.type.max_ipp {
+                print("\(planet_id) Poisoned by O2")
+            }
+
+            planet.atmosphere.sort { gasA, gasB in
+                gasA.surf_pressure > gasB.surf_pressure
+            }
+            print("\(planet_id), (\(planet.a) AU) gases:")
+            for gas in planet.atmosphere {
+                print("\(gas.type.symbol): \(gas.surf_pressure), \(gas.surf_pressure / planet.surf_pressure * 100.0)")
+            }
+        }
+    }
     // void calculate_gases(sun*            sun,
     //                     planet_pointer    planet,
     //                     char*            planet_id)
@@ -1659,6 +1727,70 @@ func generate_planets(sun: Sun,
 //        return +1;
 //    return (x->surf_pressure > y->surf_pressure ? -1 : 0);
 // }
+
+struct FunctionFlags {
+    enum OutputFormat {
+        case html
+        case text
+        case csv
+        case svg
+    }
+
+    enum GraphicFormat {
+        case gif
+        case png
+        case jpeg
+        case svg
+    }
+
+    var do_catalog: Bool
+    var do_gases: Bool
+    var use_solar_system: Bool
+    var reuse_solar_system: Bool
+    var use_known_planets: Bool
+    var dont_generate: Bool
+    var do_moons: Bool
+    var only_habitable: Bool
+    var only_multi_habitable: Bool
+    var only_jovian_habitable: Bool
+    var only_earthlike: Bool
+    var output_path: String
+    var filename_argument: String
+    var output_format: OutputFormat
+    var graphic_format: GraphicFormat
+    var system_name: String
+    var mass_argument: Double
+    var seed_argument: UInt64
+    var count_argument: Int
+    var incr_argument: Int
+    var catalog_argument: Catalog
+    var sys_no_argument: Int
+    var ratio_argument: Double
+}
+
+enum Actions {
+    case generate //    - Generate random system(s)
+    case listGases //    - List the gas table
+    case listCatalog //    - List the stars in a catalog
+    case listCatalogAsHTML //  - For creating a <FORM>
+    case sizeCheck //  - List sizes of various types
+    case listVerbosity //  - List values of the -v option
+}
+
+func stargen(flags _: FunctionFlags, action _: Actions) {}
+
+//    int                do_catalog            = ((cat_arg != NULL) && (sys_no_arg == 0));
+//    int                catalog_count        = 0;
+//    int                do_gases            = (flags_arg & fDoGases) != 0;
+//    int             use_solar_system    = (flags_arg & fUseSolarsystem) != 0;
+//    int                reuse_solar_system    = (flags_arg & fReuseSolarsystem) != 0;
+//    int                use_known_planets    = (flags_arg & fUseKnownPlanets) != 0;
+//    int                no_generate            = (flags_arg & fNoGenerate) != 0;
+//    int                do_moons            = (flags_arg & fDoMoons) != 0;
+//    int                only_habitable        = (flags_arg & fOnlyHabitable) != 0;
+//    int                only_multi_habitable= (flags_arg & fOnlyMultiHabitable) != 0;
+//    int                only_jovian_habitable=(flags_arg & fOnlyJovianHabitable) != 0;
+//    int                only_earthlike        = (flags_arg & fOnlyEarthlike) != 0;
 
 // int stargen (actions        action,
 //             char            flag_char,

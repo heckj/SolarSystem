@@ -14,7 +14,7 @@ struct Stargen: ParsableCommand {
     mutating func run() throws {
         let repeatCount = count ?? 2
 
-        for i in 1...repeatCount {
+        for i in 1 ... repeatCount {
             if includeCounter {
                 print("\(i): \(phrase)")
             } else {
@@ -447,7 +447,7 @@ struct Stargen: ParsableCommand {
 //        }
 //    }
 //
-//    stargen (action,
+//    stargen(action,
 //             flag_char,
 //             path,
 //             url_path_arg,
