@@ -213,7 +213,8 @@ func generate_stellar_system(sun: inout Sun,
                              outer_planet_limit: Double,
                              do_gases: Bool,
                              do_moons: Bool,
-                             prng: inout RNGWrapper<Xoshiro>)
+                             prng: inout RNGWrapper<Xoshiro>,
+                             counts: inout InterestingCounts)
 {
     var accretionDisk = AccretionDisk(prng: RNGWrapper(Xoshiro(seed: 542)))
 
@@ -262,7 +263,8 @@ func generate_stellar_system(sun: inout Sun,
                      system_name: system_name,
                      do_gases: do_gases,
                      do_moons: do_moons,
-                     prng: prng)
+                     prng: prng,
+                     counts: &counts)
 }
 
 // void generate_stellar_system(sun*            sun,
@@ -552,7 +554,8 @@ func generate_planet(planet: Planet,
                      do_gases: Bool,
                      do_moons: Bool,
                      is_moon: Bool,
-                     prng: RNGWrapper<Xoshiro>)
+                     prng: RNGWrapper<Xoshiro>,
+                     counts: inout InterestingCounts)
 {
     // default values
     //    planet.atmosphere        = NULL;
@@ -672,7 +675,7 @@ func generate_planet(planet: Planet,
                planet.estimated_terr_temp <= EARTH_AVERAGE_KELVIN + 10.0,
                sun.age > 2.0e9
             {
-                // habitable_jovians++; ??
+                counts.habitable_jovians += 1
 
                 //                        if (flag_verbose & 0x8000)
                 //                        {
@@ -806,7 +809,7 @@ func generate_planet(planet: Planet,
                         ptr!.e = planet.e
                         n += 1
                         moon_id = "\(planet_id).\(n)"
-                        generate_planet(planet: ptr!, planet_no: n, sun: sun, random_tilt: random_tilt, planet_id: moon_id, do_gases: do_gases, do_moons: do_moons, is_moon: true, prng: prng)
+                        generate_planet(planet: ptr!, planet_no: n, sun: sun, random_tilt: random_tilt, planet_id: moon_id, do_gases: do_gases, do_moons: do_moons, is_moon: true, prng: prng, counts: &counts)
                         // Adjusts ptr->density
 
                         roche_limit = 2.44 * planet.radius * pow(planet.density / ptr!.density, 1.0 / 3.0)
@@ -1184,11 +1187,11 @@ func generate_planet(planet: Planet,
 
 // NOTE(heckj): implementation/porting notes: mostly just collects counts and updates an overall count of what's been generated
 // for the cases of searching for generations that result in habitable planets.
-func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inout [PlanetType: Int], habital_count: inout Int, earthlike_count: inout Int) {
-    if let a_count = counts[planet.planet_type] {
-        counts[planet.planet_type] = a_count + 1
+func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inout InterestingCounts) {
+    if let a_count = counts.type_counts[planet.planet_type] {
+        counts.type_counts[planet.planet_type] = a_count + 1
     } else {
-        counts[planet.planet_type] = 1
+        counts.type_counts[planet.planet_type] = 1
     }
 
     var min_breathable_terrestrial_g = 1000.0
@@ -1208,6 +1211,7 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
     /* Check for and list planets with breathable atmospheres */
 
     let breathe: Breathability = breathability(planet: planet)
+    var habitable = false
 
     if (breathe == .breathable) &&
         (!planet.resonant_period) && // Option needed?
@@ -1216,7 +1220,8 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
         var list_it = false
         let illumination = pow2(1.0 / planet.a) * planet.sun!.luminosity
 
-        habital_count += 1
+        counts.habitable += 1
+        habitable = true
 
         if min_breathable_temp > planet.surf_temp {
             min_breathable_temp = planet.surf_temp
@@ -1323,12 +1328,12 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
        planet.planet_type != .water,
        breathe == .breathable
     {
-        earthlike_count += 1
+        counts.earthlike += 1
         print("EARTHLIKE: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
 
     } else if breathe == .breathable,
               gravity > 1.3,
-              habital_count > 1,
+              habitable,
               (rel_temp < -2.0) || (ice > 10.0)
     {
         print("Sphinx-like: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
@@ -1593,11 +1598,9 @@ func generate_planets(sun: Sun,
                       system_name: String,
                       do_gases: Bool,
                       do_moons: Bool,
-                      prng: RNGWrapper<Xoshiro>)
+                      prng: RNGWrapper<Xoshiro>,
+                      counts: inout InterestingCounts)
 {
-    var habitable_count = 0
-    var earthlike_count = 0
-    var type_counts: [PlanetType: Int] = [:]
     var planet: Planet? = innermost_planet
     var planet_no = 1
 
@@ -1617,14 +1620,15 @@ func generate_planets(sun: Sun,
                         do_gases: do_gases,
                         do_moons: do_moons,
                         is_moon: false,
-                        prng: prng)
+                        prng: prng,
+                        counts: &counts)
 
         /*
          *    Now we're ready to test for habitable planets,
          *    so we can count and log them and such
          */
 
-        check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false, counts: &type_counts, habital_count: &habitable_count, earthlike_count: &earthlike_count)
+        check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false, counts: &counts)
         var moon: Planet? = concrete_planet.first_moon
         var moons = 1
 
@@ -1634,7 +1638,7 @@ func generate_planets(sun: Sun,
             }
 
             let moon_id = "\(planet_id).\(moons)"
-            check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true, counts: &type_counts, habital_count: &habitable_count, earthlike_count: &earthlike_count)
+            check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true, counts: &counts)
             if concrete_moon.next_planet != nil {
                 moon = concrete_moon.next_planet
                 moons += 1
@@ -1733,7 +1737,6 @@ struct FunctionFlags {
     var mass_argument: Double
     var seed_argument: UInt64
     var count_argument: Int
-    var incr_argument: Int
     var catalog_argument: Catalog
     var sys_no_argument: Int
     var ratio_argument: Double
@@ -1748,6 +1751,13 @@ enum Actions {
     case listVerbosity //  - List values of the -v option
 }
 
+struct InterestingCounts {
+    var earthlike = 0
+    var habitable = 0
+    var habitable_jovians = 0
+    var type_counts: [PlanetType: Int] = [:]
+}
+
 //  main entrance point to invoking generation or exploration
 func stargen(flags: FunctionFlags, action: Actions) {
     var sun = Sun(luminosity: 0, mass: 0, life: 0, age: 0, r_ecosphere: 0, name: "")
@@ -1755,7 +1765,6 @@ func stargen(flags: FunctionFlags, action: Actions) {
     let inc_mass = 0.05
     let max_mass = 2.35
     var system_count = 1
-    var seed_increment = 1
 
     let thumbnail_file = "Thumbnails"
     let file_name = "StarGen"
@@ -1815,10 +1824,8 @@ func stargen(flags: FunctionFlags, action: Actions) {
         """
         print(msg)
     case .generate:
-        let flag_seed = flags.seed_argument
-        let sun_mass = flags.mass_argument
+        sun.mass = flags.mass_argument
         system_count = flags.count_argument
-        seed_increment = flags.incr_argument
         var seed_planets: Planet?
         let dust_density_coeff: Double
         var use_seed_system = false
@@ -1885,15 +1892,12 @@ func stargen(flags: FunctionFlags, action: Actions) {
             }
             sun.name = system_name
 
-            var earthlike = 0
-            var habitable = 0
-            var habitable_jovians = 0
-            var type_counts: [PlanetType: Int] = [:]
+            var counts = InterestingCounts()
             if flags.reuse_solar_system || flags.use_solar_system {
                 seed_planets = mercury
                 use_seed_system = true
             }
-            generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng)
+            generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng, counts: &counts)
         }
     }
 
