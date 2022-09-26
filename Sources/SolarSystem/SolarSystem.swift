@@ -217,7 +217,7 @@ func generate_stellar_system(sun: inout Sun,
                              prng: inout RNGWrapper<Xoshiro>,
                              counts: inout InterestingCounts)
 {
-    var accretionDisk = AccretionDisk(prng: RNGWrapper(Xoshiro(seed: 542)))
+    var accretionDisk = AccretionDisk(prng: prng)
 
     if sun.mass < 0.2 || sun.mass > 1.5 {
         sun.mass = prng.random_number(in: 0.7 ... 1.4)
