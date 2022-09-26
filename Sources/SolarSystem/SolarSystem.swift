@@ -211,6 +211,7 @@ func generate_stellar_system(sun: inout Sun,
                              sys_no: Int,
                              system_name: String,
                              outer_planet_limit: Double,
+                             dust_density_coeff: Double,
                              do_gases: Bool,
                              do_moons: Bool,
                              prng: inout RNGWrapper<Xoshiro>,
@@ -248,7 +249,7 @@ func generate_stellar_system(sun: inout Sun,
             inner_dust: 0.0,
             outer_dust: outer_dust_limit,
             outer_planet_limit: outer_planet_limit,
-            dust_density_coeff: DUST_DENSITY_COEFF,
+            dust_density_coeff: dust_density_coeff,
             seed_system: seed_system,
             do_moons: do_moons
         )
@@ -1897,7 +1898,7 @@ func stargen(flags: FunctionFlags, action: Actions) {
                 seed_planets = mercury
                 use_seed_system = true
             }
-            generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng, counts: &counts)
+            generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, dust_density_coeff: dust_density_coeff, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng, counts: &counts)
         }
     }
 
