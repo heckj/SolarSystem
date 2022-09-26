@@ -286,7 +286,7 @@ final class Star {
 //    char            *name;
 //    } star;
 
-final class Catalog {
+public final class Catalog {
     var count: Int
     var arg: String
     var stars: [Star]

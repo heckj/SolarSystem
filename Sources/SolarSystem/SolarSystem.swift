@@ -1702,48 +1702,48 @@ func generate_planets(sun: Sun,
 //    }
 // }
 
-struct FunctionFlags {
-    enum OutputFormat {
+public struct FunctionFlags {
+    public enum OutputFormat {
         case html
         case text
         case csv
         case svg
     }
 
-    enum GraphicFormat {
+    public enum GraphicFormat {
         case gif
         case png
         case jpeg
         case svg
     }
 
-    var do_catalog: Bool
-    var do_gases: Bool
-    var use_solar_system: Bool
-    var reuse_solar_system: Bool
-    var use_known_planets: Bool
-    var dont_generate: Bool
-    var do_moons: Bool
-    var only_habitable: Bool
-    var only_multi_habitable: Bool
-    var only_jovian_habitable: Bool
-    var only_earthlike: Bool
+    public var do_catalog: Bool
+    public var do_gases: Bool
+    public var use_solar_system: Bool
+    public var reuse_solar_system: Bool
+    public var use_known_planets: Bool
+    public var dont_generate: Bool
+    public var do_moons: Bool
+    public var only_habitable: Bool
+    public var only_multi_habitable: Bool
+    public var only_jovian_habitable: Bool
+    public var only_earthlike: Bool
 
-    var output_path: String
-    var filename_argument: String
-    var output_format: OutputFormat
-    var graphic_format: GraphicFormat
+    public var output_path: String
+    public var filename_argument: String
+    public var output_format: OutputFormat
+    public var graphic_format: GraphicFormat
 
-    var system_name: String
-    var mass_argument: Double
-    var seed_argument: UInt64
-    var count_argument: Int
-    var catalog_argument: Catalog
-    var sys_no_argument: Int
-    var ratio_argument: Double
+    public var system_name: String
+    public var mass_argument: Double
+    public var seed_argument: UInt64
+    public var count_argument: Int
+    public var catalog_argument: Catalog
+    public var sys_no_argument: Int
+    public var ratio_argument: Double
 }
 
-enum Actions {
+public enum Actions {
     case generate //    - Generate random system(s)
     case listGases //    - List the gas table
     case listCatalog //    - List the stars in a catalog
@@ -1760,7 +1760,7 @@ struct InterestingCounts {
 }
 
 //  main entrance point to invoking generation or exploration
-func stargen(flags: FunctionFlags, action: Actions) {
+public func stargen(flags: FunctionFlags, action: Actions) {
     var sun = Sun(luminosity: 0, mass: 0, life: 0, age: 0, r_ecosphere: 0, name: "")
     let min_mass = 0.4
     let inc_mass = 0.05
