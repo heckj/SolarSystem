@@ -6,22 +6,22 @@ import Foundation
 
 // From Keris
 
-final class ChemTableEntry {
-    var num: Int
-    var symbol: String
-    var html_symbol: String
-    var name: String
-    var weight: Double
-    var melt: Double
-    var boil: Double
-    var density: Double
-    var abunde: Double
-    var abunds: Double
-    var reactivity: Double
-    var max_ipp: Double // Max inspired partial pressure im millibars
+public final class ChemTableEntry {
+    public var num: Int
+    public var symbol: String
+    public var html_symbol: String
+    public var name: String
+    public var weight: Double
+    public var melt: Double
+    public var boil: Double
+    public var density: Double
+    public var abunde: Double
+    public var abunds: Double
+    public var reactivity: Double
+    public var max_ipp: Double // Max inspired partial pressure im millibars
 
     //   An   sym   HTML symbol                      name                 Aw      melt    boil    dens       ABUNDe       ABUNDs         Rea    Max inspired pp
-    init(num: Int, symbol: String, html_symbol: String, name: String, weight: Double, melt: Double, boil: Double, density: Double, abunde: Double, abunds: Double, reactivity: Double, max_ipp: Double) {
+    public init(num: Int, symbol: String, html_symbol: String, name: String, weight: Double, melt: Double, boil: Double, density: Double, abunde: Double, abunds: Double, reactivity: Double, max_ipp: Double) {
         self.num = num
         self.symbol = symbol
         self.html_symbol = html_symbol

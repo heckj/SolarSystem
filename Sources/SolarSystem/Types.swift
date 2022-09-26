@@ -9,7 +9,7 @@
 // typedef struct gen *gen_pointer;
 import Foundation
 
-enum PlanetType {
+public enum PlanetType {
     case unknown
     case rock
     case venusian
@@ -41,11 +41,11 @@ extension PlanetType: CaseIterable {}
 //    t1Face
 // } planet_type;
 
-final class Gas {
-    var type: ChemTableEntry
-    var surf_pressure: Double /* units of millibars (mb)             */
+public final class Gas {
+    public var type: ChemTableEntry
+    public var surf_pressure: Double /* units of millibars (mb)             */
 
-    init(_ type: ChemTableEntry, surf_pressure: Double) {
+    public init(_ type: ChemTableEntry, surf_pressure: Double) {
         self.type = type
         self.surf_pressure = surf_pressure
     }
@@ -56,15 +56,15 @@ final class Gas {
 //    long double    surf_pressure;        /* units of millibars (mb)             */
 //    } gas;
 
-final class Sun {
-    var luminosity: Double
-    var mass: Double
-    var life: Double
-    var age: Double
-    var r_ecosphere: Double
-    var name: String
+public final class Sun {
+    public var luminosity: Double
+    public var mass: Double
+    public var life: Double
+    public var age: Double
+    public var r_ecosphere: Double
+    public var name: String
 
-    init(luminosity: Double, mass: Double, life: Double, age: Double, r_ecosphere: Double, name: String) {
+    public init(luminosity: Double, mass: Double, life: Double, age: Double, r_ecosphere: Double, name: String) {
         self.luminosity = luminosity
         self.mass = mass
         self.life = life
@@ -86,64 +86,64 @@ final class Sun {
 // For the seeding systems, the initializer that makes the most sense takes an "orbit #", "AU" distance, and "E" eccentricity, axial tilt (degrees), and mass.
 // From "SolarSystem.swift" conversion space: /*       No Orbit   Eccen. Tilt Mass    Gas Giant? Dust Mass   Gas */
 // No reason we couldn't splat in a name as well ;-)
-final class Planet: Equatable {
+public final class Planet: Equatable {
     // NOTE(heckj): I slapped in a quick unique identifier for each generated planet to easily
     // compare linked list references...
-    static func == (lhs: Planet, rhs: Planet) -> Bool {
+    public static func == (lhs: Planet, rhs: Planet) -> Bool {
         lhs.id == rhs.id
     }
 
     var id: UUID = .init()
 
-    var planet_no: Int
-    var a: Double /* semi-major axis of solar orbit (in AU)*/
-    var e: Double /* eccentricity of solar orbit         */
-    var axial_tilt: Double /* units in degrees */
-    var mass: Double /* mass (in solar masses)             */
-    var gas_giant: Bool /* TRUE if the planet is a gas giant */
-    var dust_mass: Double /* mass, ignoring gas                 */
-    var gas_mass: Double /* mass, ignoring dust                 */
+    public var planet_no: Int
+    public var a: Double /* semi-major axis of solar orbit (in AU)*/
+    public var e: Double /* eccentricity of solar orbit         */
+    public var axial_tilt: Double /* units in degrees */
+    public var mass: Double /* mass (in solar masses)             */
+    public var gas_giant: Bool /* TRUE if the planet is a gas giant */
+    public var dust_mass: Double /* mass, ignoring gas                 */
+    public var gas_mass: Double /* mass, ignoring dust                 */
 
-    var core_radius: Double = 0 /* radius of the rocky core (in km)     */
-    var radius: Double = 0 /* equatorial radius (in km)         */
-    var orbit_zone: Int = 0 /* the 'zone' of the planet             */
-    var density: Double = 0 /* density (in g/cc)                 */
-    var orb_period: Double = 0 /* length of the local year (days)     */
-    var day: Double = 0 /* length of the local day (hours)     */
-    var resonant_period: Bool = false /* TRUE if in resonant rotation         */
-    var esc_velocity: Double = 0 /* units of cm/sec                     */
-    var surf_accel: Double = 0 /* units of cm/sec2                     */
-    var surf_grav: Double = 0 /* units of Earth gravities             */
-    var rms_velocity: Double = 0 /* units of cm/sec                     */
-    var molec_weight: Double = 0 /* smallest molecular weight retained*/
-    var volatile_gas_inventory: Double = 0
-    var surf_pressure: Double = 0 /* units of millibars (mb)             */
-    var greenhouse_effect: Bool = false /* runaway greenhouse effect?         */
-    var boil_point: Double = 0 /* the boiling point of water (Kelvin)*/
-    var albedo: Double = 0 /* albedo of the planet                 */
-    var exospheric_temp: Double = 0 /* units of degrees Kelvin             */
-    var estimated_temp: Double = 0 /* quick non-iterative estimate (K)  */
-    var estimated_terr_temp: Double = 0 /* for terrestrial moons and the like*/
-    var surf_temp: Double = 0 /* surface temperature in Kelvin     */
-    var greenhs_rise: Double = 0 /* Temperature rise due to greenhouse */
-    var high_temp: Double = 0 /* Day-time temperature              */
-    var low_temp: Double = 0 /* Night-time temperature             */
-    var max_temp: Double = 0 /* Summer/Day                         */
-    var min_temp: Double = 0 /* Winter/Night                         */
-    var hydrosphere: Double = 0 /* fraction of surface covered         */
-    var cloud_cover: Double = 0 /* fraction of surface covered         */
-    var ice_cover: Double = 0 /* fraction of surface covered         */
+    public var core_radius: Double = 0 /* radius of the rocky core (in km)     */
+    public var radius: Double = 0 /* equatorial radius (in km)         */
+    public var orbit_zone: Int = 0 /* the 'zone' of the planet             */
+    public var density: Double = 0 /* density (in g/cc)                 */
+    public var orb_period: Double = 0 /* length of the local year (days)     */
+    public var day: Double = 0 /* length of the local day (hours)     */
+    public var resonant_period: Bool = false /* TRUE if in resonant rotation         */
+    public var esc_velocity: Double = 0 /* units of cm/sec                     */
+    public var surf_accel: Double = 0 /* units of cm/sec2                     */
+    public var surf_grav: Double = 0 /* units of Earth gravities             */
+    public var rms_velocity: Double = 0 /* units of cm/sec                     */
+    public var molec_weight: Double = 0 /* smallest molecular weight retained*/
+    public var volatile_gas_inventory: Double = 0
+    public var surf_pressure: Double = 0 /* units of millibars (mb)             */
+    public var greenhouse_effect: Bool = false /* runaway greenhouse effect?         */
+    public var boil_point: Double = 0 /* the boiling point of water (Kelvin)*/
+    public var albedo: Double = 0 /* albedo of the planet                 */
+    public var exospheric_temp: Double = 0 /* units of degrees Kelvin             */
+    public var estimated_temp: Double = 0 /* quick non-iterative estimate (K)  */
+    public var estimated_terr_temp: Double = 0 /* for terrestrial moons and the like*/
+    public var surf_temp: Double = 0 /* surface temperature in Kelvin     */
+    public var greenhs_rise: Double = 0 /* Temperature rise due to greenhouse */
+    public var high_temp: Double = 0 /* Day-time temperature              */
+    public var low_temp: Double = 0 /* Night-time temperature             */
+    public var max_temp: Double = 0 /* Summer/Day                         */
+    public var min_temp: Double = 0 /* Winter/Night                         */
+    public var hydrosphere: Double = 0 /* fraction of surface covered         */
+    public var cloud_cover: Double = 0 /* fraction of surface covered         */
+    public var ice_cover: Double = 0 /* fraction of surface covered         */
 
-    var sun: Sun?
-    var gases: Int = 0 /* Count of gases in the atmosphere: */
-    var atmosphere: [Gas] = []
+    public var sun: Sun?
+    public var gases: Int = 0 /* Count of gases in the atmosphere: */
+    public var atmosphere: [Gas] = []
 
-    var planet_type: PlanetType = .unknown
-    var minor_moons: Int = 0
-    var first_moon: Planet?
-    var next_planet: Planet?
+    public var planet_type: PlanetType = .unknown
+    public var minor_moons: Int = 0
+    public var first_moon: Planet?
+    public var next_planet: Planet?
 
-    init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, first_moon: Planet? = nil, next_planet: Planet?) {
+    public init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, first_moon: Planet? = nil, next_planet: Planet?) {
         self.planet_no = planet_no
         self.a = a
         self.e = e
@@ -235,19 +235,19 @@ final class Dust {
 //    dust_pointer next_band;
 //     } dust;
 
-final class Star {
-    var luminosity: Double
-    var mass: Double
-    var m2: Double
-    var e: Double
-    var a: Double
-    var known_planets: Planet?
-    var desig: String
-    var in_celestia: Bool
-    var name: String
+public final class Star {
+    public var luminosity: Double
+    public var mass: Double
+    public var m2: Double
+    public var e: Double
+    public var a: Double
+    public var known_planets: Planet?
+    public var desig: String
+    public var in_celestia: Bool
+    public var name: String
 
     /*    L  Mass    Mass2    Eccen.    SemiMajorAxis    Designation    Name    */
-    init(luminosity: Double, mass: Double, m2: Double, e: Double, a: Double, known_planets: Planet?, desig: String, in_celestia: Bool, name: String) {
+    public init(luminosity: Double, mass: Double, m2: Double, e: Double, a: Double, known_planets: Planet?, desig: String, in_celestia: Bool, name: String) {
         self.luminosity = luminosity
         self.mass = mass
         self.m2 = m2
