@@ -1,26 +1,21 @@
 import ArgumentParser
+import SolarSystem
 
 @main
 struct Stargen: ParsableCommand {
-    @Option(help: "The number of times to repeat 'phrase'.")
-    var count: Int? // = nil
+    @Option(help: "The pseudo-random number generator seed.")
+    var seed: UInt64 = 2354
 
-    @Flag(help: "Include a counter with each repetition.")
-    var includeCounter = false
+//    @Flag(help: "Include a counter with each repetition.")
+//    var includeCounter = false
 
-    @Argument(help: "The phrase to repeat.")
-    var phrase: String
+    @Argument(help: "The mass (in solar masses) for the star.")
+    var mass: Double
 
     mutating func run() throws {
-        let repeatCount = count ?? 2
+        let flags = FunctionFlags(do_catalog: false, do_moons: true, do_gases: true, use_solar_system: false, reuse_solar_system: false, use_known_planets: false, dont_generate: false, only_habitable: false, only_multi_habitable: false, only_jovian_habitable: false, only_earthlike: false, output_path: "", filename_argument: "", output_format: .text, graphic_format: .gif, system_name: "", mass_argument: mass, seed_argument: seed)
 
-        for i in 1 ... repeatCount {
-            if includeCounter {
-                print("\(i): \(phrase)")
-            } else {
-                print(phrase)
-            }
-        }
+        stargen(flags: flags, action: .generate)
     }
 }
 

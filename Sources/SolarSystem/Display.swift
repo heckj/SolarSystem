@@ -1,89 +1,166 @@
 //
-//  File.swift
-//  
-//
-//  Created by Joseph Heck on 9/13/22.
+//  Display.swift
 //
 
 import Foundation
 
+func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, seed: UInt64) {
+    var planet: Planet?
+    var counter = 1
 
-//char *engineer_notation(long double, int);
-//void text_describe_system(planet_pointer, int, long);
-//void csv_describe_system(FILE *, planet_pointer, int, long);
-//void csv_thumbnails(FILE*, char*, char*, char*, char*);
-//char *type_string(planet_type);
-//void create_svg_file (FILE *, planet_pointer, char *, char *, char *, char *);
-//FILE *open_csv_file (char *, char *);
-//FILE *open_html_file(char *, long, char *, char *, char *, char *, char *, FILE *);
-//void close_html_file(FILE *);
-//void print_description(FILE *, char *, planet_pointer, char *);
-//void list_molecules(FILE *, long double);
-//void html_thumbnails(planet_pointer, FILE *, char *, char *, char *, char *, char *, int, int, int, int, int);
-//void html_thumbnail_totals(FILE *);
-//void html_describe_system(planet_pointer, int, char *, FILE *);
-//void celestia_describe_system(planet_pointer, char *);
-//char *texture_name (planet_type);
+    print("SolarSystem Generation seed: \(seed)")
+    print("                          SYSTEM  CHARACTERISTICS")
+    print("Stellar mass: \(sun.mass) solar masses")
+    print("Stellar luminosity: \(sun.luminosity)")
+    print("Age: \(sun.age / 1.0e9) billion years (\((sun.life - sun.age) / 1.0e9) billion left on main sequence)")
+    print("Habitable ecosphere radius: \(sun.r_ecosphere) AU")
+    print()
+    print("Planets present at:")
+    planet = innermost_planet
+    while planet != nil {
+        guard let planet = planet else { break }
+        let textSymbol: String
+        if planet.gas_giant {
+            textSymbol = "O"
+        } else if planet.greenhouse_effect, planet.surf_pressure > 0.0 {
+            textSymbol = "+"
+        } else if planet.hydrosphere > 0.05, planet.hydrosphere < 0.95 {
+            textSymbol = "*"
+        } else if (planet.mass * SUN_MASS_IN_EARTH_MASSES) > 0.1 {
+            textSymbol = "o"
+        } else {
+            textSymbol = "."
+        }
+        print("\(counter)\t\(planet.a) AU\t\(planet.mass * SUN_MASS_IN_EARTH_MASSES) EM\t\(textSymbol)\n")
+        counter += 1
+    }
+
+    print()
+    planet = innermost_planet
+    while planet != nil {
+        guard let planet = planet else { break }
+        print("Planet \(planet.id) \(planet.gas_giant ? "*gas giant*" : "")")
+
+        if Int(planet.day) == Int(planet.orb_period * 24.0) {
+            print("Planet is tidally locked with one face to star.")
+        }
+        if planet.resonant_period {
+            print("Planet's rotation is in a resonant spin lock with the star")
+        }
+        print("   Distance from primary star:\t\(planet.a)\tAU")
+        print("   Mass:\t\t\t\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tEarth masses")
+        if !(planet.gas_giant) {
+            print("   Surface gravity:\t\t\(planet.surf_grav)\tEarth Gs")
+            print("   Surface pressure:\t\t\(planet.surf_pressure / 1000.0)\tEarth atmospheres")
+            if planet.greenhouse_effect, planet.surf_pressure > 0.0 {
+                print("\tGREENHOUSE EFFECT")
+            }
+            print("   Surface temperature:\t\t\(planet.surf_temp - FREEZING_POINT_OF_WATER)\tdegrees Celcius\n")
+        }
+        print("   Equatorial radius:\t\t\(planet.radius)\tKm")
+        print("   Density:\t\t\t\(planet.density)\tgrams/cc")
+        print("   Eccentricity of orbit:\t\(planet.e)")
+        print("   Escape Velocity:\t\t\(planet.esc_velocity / CM_PER_KM)\tKm/sec")
+        print("   Molecular weight retained:\t\(planet.molec_weight) and above")
+        print("   Surface acceleration:\t\(planet.surf_accel)\tcm/sec2")
+        print("   Axial tilt:\t\t\t\(planet.axial_tilt)\tdegrees")
+        print("   Planetary albedo:\t\t\(planet.albedo)")
+        print("   Length of year:\t\t\(planet.orb_period)\tdays")
+        print("   Length of day:\t\t\(planet.day)\thours")
+        if !(planet.gas_giant) {
+            print("   Boiling point of water:\t\(planet.boil_point - FREEZING_POINT_OF_WATER)\tdegrees Celcius")
+            print("   Hydrosphere percentage:\t\(planet.hydrosphere * 100.0)")
+            print("   Cloud cover percentage:\t\(planet.cloud_cover * 100)")
+            print("   Ice cover percentage:\t\(planet.ice_cover * 100)")
+        }
+        print()
+
+        if do_gases,
+           planet.planet_type != .gasgiant,
+           planet.planet_type != .subgasgiant,
+           planet.planet_type != .subsubgasgiant
+        {
+            // gases?
+        }
+    }
+}
+
+// char *engineer_notation(long double, int);
+// void text_describe_system(planet_pointer, int, long);
+// void csv_describe_system(FILE *, planet_pointer, int, long);
+// void csv_thumbnails(FILE*, char*, char*, char*, char*);
+// char *type_string(planet_type);
+// void create_svg_file (FILE *, planet_pointer, char *, char *, char *, char *);
+// FILE *open_csv_file (char *, char *);
+// FILE *open_html_file(char *, long, char *, char *, char *, char *, char *, FILE *);
+// void close_html_file(FILE *);
+// void print_description(FILE *, char *, planet_pointer, char *);
+// void list_molecules(FILE *, long double);
+// void html_thumbnails(planet_pointer, FILE *, char *, char *, char *, char *, char *, int, int, int, int, int);
+// void html_thumbnail_totals(FILE *);
+// void html_describe_system(planet_pointer, int, char *, FILE *);
+// void celestia_describe_system(planet_pointer, char *);
+// char *texture_name (planet_type);
 //
-//#define STARGEN_URL    "http://www.eldacur.com/~brons/NerdCorner/StarGen/StarGen.html"
+// #define STARGEN_URL    "http://www.eldacur.com/~brons/NerdCorner/StarGen/StarGen.html"
 //
 //// Define the color scheme. Black, Brown and Beige (with a nod to the Duke)
 //
 //// Main page colors: Beige BG, Dark brown text, Red links
-//#define BGCOLOR        "#FFCC99"
-//#define TXCOLOR        "#330000"
-//#define LINKCOLOR    "#990000"
-//#define ALINKCOLOR    "#FF0000"
+// #define BGCOLOR        "#FFCC99"
+// #define TXCOLOR        "#330000"
+// #define LINKCOLOR    "#990000"
+// #define ALINKCOLOR    "#FF0000"
 //
 //// Contrasting headers: Light brown with black text
-//#define BGHEADER    "#CC9966"
-//#define TXHEADER    "#000000"
+// #define BGHEADER    "#CC9966"
+// #define TXHEADER    "#000000"
 //
 //// Space, background for planets, black with sand colored letters
-//#define BGSPACE        "#000000"
-//#define TXSPACE        "#FFE6CC"
+// #define BGSPACE        "#000000"
+// #define TXSPACE        "#FFE6CC"
 //
 //// Main table color scheme: Sand with black (space reversed)
-//#define BGTABLE        "#FFE6CC"
-//#define TXTABLE        "#000000"
+// #define BGTABLE        "#FFE6CC"
+// #define TXTABLE        "#000000"
 //
 //// Notices: Post-It yellow with normal text
 //
-//#define BGNOTE        "#FFFF66"
-//#define TXNOTE        TXCOLOR
+// #define BGNOTE        "#FFFF66"
+// #define TXNOTE        TXCOLOR
 //
-//#include    <stdio.h>
-//#include    <string.h>
-//#include    <math.h>
+// #include    <stdio.h>
+// #include    <string.h>
+// #include    <math.h>
 //
-//#ifdef THINK_C
-//#define macintosh 1
-//#endif
+// #ifdef THINK_C
+// #define macintosh 1
+// #endif
 //
-//#ifdef macintosh
-//#include    <console.h>
-//#include    <unix.h>
-//#endif
+// #ifdef macintosh
+// #include    <console.h>
+// #include    <unix.h>
+// #endif
 //
-//#ifdef MSDOS
-//#include    <stddef.h>
-//#include    <stdlib.h>
-//#include    <string.h>
-//#include    <float.h>
-//#endif
+// #ifdef MSDOS
+// #include    <stddef.h>
+// #include    <stdlib.h>
+// #include    <string.h>
+// #include    <float.h>
+// #endif
 //
-//#include    "structs.h"
-//#include    "const.h"
-//#include    "display.h"
-//#include    "enviro.h"
-//#include    "stargen.h"
+// #include    "structs.h"
+// #include    "const.h"
+// #include    "display.h"
+// #include    "enviro.h"
+// #include    "stargen.h"
 //
-//#define    MAX_EXP_DIGS    3
-//#define    MAX_MAN_DIGS    20
+// #define    MAX_EXP_DIGS    3
+// #define    MAX_MAN_DIGS    20
 //
-//char *engineer_notation(long double d,
+// char *engineer_notation(long double d,
 //                        int         p)
-//{
+// {
 //    static char mansign;
 //    static char expsign;
 //    static char output[1+MAX_MAN_DIGS+1+1+MAX_EXP_DIGS+1];
@@ -136,10 +213,10 @@ import Foundation
 //    sprintf(output, "%c%*.*Lfe%c%*.*d", mansign, p, p, mantissa,
 //        expsign, MAX_EXP_DIGS, MAX_EXP_DIGS, exponent);
 //    return (output);
-//}
+// }
 //
-//void text_describe_system(planet_pointer innermost_planet, int do_gases, long int seed)
-//{
+// void text_describe_system(planet_pointer innermost_planet, int do_gases, long int seed)
+// {
 //    planet_pointer     planet;
 //    sun*            sun = innermost_planet->sun;
 //    int             counter;
@@ -217,10 +294,10 @@ import Foundation
 //            //gases?
 //        }
 //    }
-//}
+// }
 //
-//void csv_describe_system(FILE *file, planet_pointer innermost_planet, int do_gases, long int seed)
-//{
+// void csv_describe_system(FILE *file, planet_pointer innermost_planet, int do_gases, long int seed)
+// {
 //    planet_pointer     planet;
 //    sun*            sun = innermost_planet->sun;
 //    int             counter;
@@ -500,14 +577,14 @@ import Foundation
 //        }
 //    }
 //
-//}
+// }
 //
-//void csv_thumbnails(FILE*    file,
+// void csv_thumbnails(FILE*    file,
 //                    char*    url_path,
 //                    char*    subdir,
 //                    char*    file_name,
 //                    char*    csv_url)
-//{
+// {
 //    fprintf(file,
 //            "<table border=3 cellpadding=2 align=center bgcolor='#FFE6CC' width='75%%'>\n"
 //            "    <tr>\n"
@@ -522,10 +599,10 @@ import Foundation
 //            csv_url,
 //            url_path,
 //            file_name);
-//}
+// }
 //
-//char *type_string (planet_type type)
-//{
+// char *type_string (planet_type type)
+// {
 //    char *typeString = "Unknown";
 //
 //    switch (type)
@@ -544,10 +621,10 @@ import Foundation
 //        case t1Face:            typeString = "1Face";        break;
 //    }
 //    return typeString;
-//}
+// }
 //
-//char *texture_name (planet_type type)
-//{
+// char *texture_name (planet_type type)
+// {
 //    char *typeString = "Unknown";
 //
 //    switch (type)
@@ -566,15 +643,15 @@ import Foundation
 //        case t1Face:            typeString = "x.jpg";            break;
 //    }
 //    return typeString;
-//}
+// }
 //
-//void create_svg_file (FILE                *file_arg,
+// void create_svg_file (FILE                *file_arg,
 //                      planet_pointer    innermost_planet,
 //                      char                *path,
 //                      char                 *file_name,
 //                      char                 *svg_ext,
 //                      char                 *prognam)
-//{
+// {
 //    planet_pointer     outermost_planet;
 //    planet_pointer    planet;
 //    FILE*    file = stdout;
@@ -584,15 +661,15 @@ import Foundation
 //    {
 //        sprintf (&file_spec[0], "%s%s%s", path, file_name, svg_ext);
 //
-//#ifdef macintosh
+// #ifdef macintosh
 //        _fcreator ='MSIE';
 //        _ftype = 'TEXT';
-//#endif
+// #endif
 //        file = fopen (file_spec, "w");
-//#ifdef macintosh
+// #ifdef macintosh
 //        _fcreator ='R*ch';
 //        _ftype = 'TEXT';
-//#endif
+// #endif
 //    }
 //    else
 //    {
@@ -773,34 +850,34 @@ import Foundation
 //        fflush (file);
 //        fclose (file);
 //    }
-//}
+// }
 //
-//FILE *open_csv_file (char *path,
+// FILE *open_csv_file (char *path,
 //                     char *file_name)
-//{
+// {
 //    FILE *file;
 //    char file_spec[120];
 //
 //    sprintf (&file_spec[0], "%s%s", path, file_name);
 //
-//#ifdef macintosh
+// #ifdef macintosh
 //        _fcreator ='XCEL';
 //        _ftype = 'TEXT';
-//#endif
+// #endif
 //        file = fopen (file_spec, "w");
-//#ifdef macintosh
+// #ifdef macintosh
 //        _fcreator ='R*ch';
 //        _ftype = 'TEXT';
-//#endif
+// #endif
 //
 //    return file;
-//}
+// }
 //
-///*
+/// *
 // *    HTML document headers
 // */
 //
-//FILE *open_html_file (char *system_name,
+// FILE *open_html_file (char *system_name,
 //                      long    seed,
 //                      char *path,
 //                      char *url_path,
@@ -808,7 +885,7 @@ import Foundation
 //                      char *ext,
 //                      char *prognam,
 //                      FILE *file_arg)
-//{
+// {
 //    FILE *file;
 //    char file_spec[300];
 //    int  noname = ((NULL == system_name) || (0 == system_name[0]));
@@ -821,15 +898,15 @@ import Foundation
 //    {
 //        sprintf (&file_spec[0], "%s%s%s", path, file_name, ext);
 //
-//#ifdef macintosh
+// #ifdef macintosh
 //        _fcreator ='MSIE';
 //        _ftype = 'TEXT';
-//#endif
+// #endif
 //        file = fopen (file_spec, "w");
-//#ifdef macintosh
+// #ifdef macintosh
 //        _fcreator ='R*ch';
 //        _ftype = 'TEXT';
-//#endif
+// #endif
 //    }
 //
 //    if (NULL != file)
@@ -859,11 +936,11 @@ import Foundation
 //    }
 //
 //    return file;
-//}
+// }
 //
-//void close_html_file(file)
-//FILE *file;
-//{
+// void close_html_file(file)
+// FILE *file;
+// {
 //
 //    fprintf (file,
 //            "<p>\n\n"
@@ -874,15 +951,15 @@ import Foundation
 //            "</body>\n</html>\n");
 //    fflush (file);
 //    fclose (file);
-//}
+// }
 //
-//#define LPRINT(x)    {fprintf (file, "%s%s", first ? "" : ", ", x); first = FALSE;}
+// #define LPRINT(x)    {fprintf (file, "%s%s", first ? "" : ", ", x); first = FALSE;}
 //
-//void print_description(FILE*            file,
+// void print_description(FILE*            file,
 //                       char*            opening,
 //                       planet_pointer     planet,
 //                       char*            closing)
-//{
+// {
 //    if ((planet->type == tGasGiant)
 //     || (planet->type == tSubGasGiant)
 //     || (planet->type == tSubSubGasGiant))
@@ -980,19 +1057,19 @@ import Foundation
 //
 //        fprintf (file, closing);
 //    }
-//}
+// }
 //
-///*
+/// *
 // *  This function lists the gases whose atomic/molecular weight is
 // *  large enough that it is retained.
 // */
 //
-//#define MOL_PRINTF(x,y)    { if (y >= weight) { \
+// #define MOL_PRINTF(x,y)    { if (y >= weight) { \
 //                            {if (++count > max) {fprintf(file, "..."); return;} \
 //                             else LPRINT(x)} } }
-//void list_molecules(FILE*        file,
+// void list_molecules(FILE*        file,
 //                    long double    weight)
-//{
+// {
 //    int count = 0;
 //    int max   = 8;
 //    int    first = TRUE;
@@ -1020,13 +1097,13 @@ import Foundation
 //    MOL_PRINTF("SO<sub><small>3</small></sub>", SULPH_TRIOXIDE);
 //    MOL_PRINTF("Kr",                            KRYPTON);
 //    MOL_PRINTF("Xe",                            XENON);
-//}
+// }
 //
-///*
+/// *
 // *    Table of scaled planet pictures
 // */
 //
-//void html_thumbnails(planet_pointer innermost_planet,
+// void html_thumbnails(planet_pointer innermost_planet,
 //                     FILE*    file,
 //                     char*    system_name,
 //                     char*    url_path,
@@ -1038,7 +1115,7 @@ import Foundation
 //                     int    int_link,
 //                     int    do_moons,
 //                     int    graphic_format)
-//{
+// {
 //    planet_pointer     planet;
 //    sun*            sun = innermost_planet->sun;
 //    int             counter;
@@ -1207,7 +1284,7 @@ import Foundation
 //    fprintf (file,
 //             "</td></tr>\n");
 //
-///*
+/// *
 // *    Table of data on the star system
 // */
 //
@@ -1299,10 +1376,10 @@ import Foundation
 //
 //    fprintf (file, "</table>\n<br clear=all>\n");
 //    fflush (file);
-//}
+// }
 //
-//void html_thumbnail_totals(FILE *file)
-//{
+// void html_thumbnail_totals(FILE *file)
+// {
 //    fprintf (file,
 //            "\n<p>\n\n"
 //            "<table border=3 cellspacing=2 cellpadding=2 align=center "
@@ -1352,16 +1429,16 @@ import Foundation
 //    fprintf (file,
 //            "</table>\n\n"
 //            );
-//}
+// }
 //
 //
-//void html_decribe_planet(planet_pointer planet,
+// void html_decribe_planet(planet_pointer planet,
 //                         int            counter,
 //                         int            moons,
 //                         int             do_gases,
 //                         char*            url_path,
 //                         FILE*            file)
-//{
+// {
 //    char    planet_id[80];
 //    char    *typeString = type_string (planet->type);
 //
@@ -1672,14 +1749,14 @@ import Foundation
 //
 //    fprintf (file,
 //        "</table>\n\n<p>\n<br>\n\n");
-//}
+// }
 //
 //
-//void html_describe_system(planet_pointer     innermost_planet,
+// void html_describe_system(planet_pointer     innermost_planet,
 //                          int                 do_gases,
 //                          char*                url_path,
 //                          FILE*                file)
-//{
+// {
 //    planet_pointer     planet;
 //    int             counter;
 //    planet_pointer     moon;
@@ -1767,10 +1844,10 @@ import Foundation
 //            html_decribe_planet(moon, counter, moons, do_gases, url_path, file);
 //        }
 //    }
-//}
+// }
 //
-//void celestia_describe_system(planet_pointer innermost_planet, char* designation)
-//{
+// void celestia_describe_system(planet_pointer innermost_planet, char* designation)
+// {
 //    planet_pointer planet;
 //    int counter;
 //
@@ -1901,4 +1978,4 @@ import Foundation
 //        printf("}\n");
 //        printf("\n");
 //    }
-//}
+// }

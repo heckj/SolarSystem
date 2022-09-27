@@ -263,6 +263,8 @@ func generate_stellar_system(sun: inout Sun,
     // At this point, we have the star for the system defined in sun,
     // the linked-list of planets in innermost_planet,
     // and the counts of planet types, number of breathable atmospheres, habitable, etc in counts.
+
+    text_describe_system(sun: sun, innermost_planet: innermost_planet, do_gases: do_gases, seed: 0)
 }
 
 // void generate_stellar_system(sun*            sun,
@@ -1736,8 +1738,32 @@ public struct FunctionFlags {
     public var mass_argument: Double // number of solar masses to use as a basis for RNG generation
     public var seed_argument: UInt64 // RNG seed
     public var count_argument: Int // number of star systems to generate
-    public var catalog_argument: Catalog // the star catalog to use for stellar luminosity and mass
+    public var catalog_argument: Catalog? // the star catalog to use for stellar luminosity and mass
     public var ratio_argument: Double // multiplier to the dust density coefficient
+
+    public init(do_catalog: Bool, do_moons: Bool, do_gases: Bool, use_solar_system: Bool, reuse_solar_system: Bool, use_known_planets: Bool, dont_generate: Bool, only_habitable: Bool, only_multi_habitable: Bool, only_jovian_habitable: Bool, only_earthlike: Bool, output_path: String, filename_argument: String, output_format: OutputFormat, graphic_format: GraphicFormat, system_name: String, mass_argument: Double, seed_argument: UInt64, count_argument: Int = 1, catalog_argument: Catalog? = nil, ratio_argument: Double = 1.0) {
+        self.do_catalog = do_catalog
+        self.do_moons = do_moons
+        self.do_gases = do_gases
+        self.use_solar_system = use_solar_system
+        self.reuse_solar_system = reuse_solar_system
+        self.use_known_planets = use_known_planets
+        self.dont_generate = dont_generate
+        self.only_habitable = only_habitable
+        self.only_multi_habitable = only_multi_habitable
+        self.only_jovian_habitable = only_jovian_habitable
+        self.only_earthlike = only_earthlike
+        self.output_path = output_path
+        self.filename_argument = filename_argument
+        self.output_format = output_format
+        self.graphic_format = graphic_format
+        self.system_name = system_name
+        self.mass_argument = mass_argument
+        self.seed_argument = seed_argument
+        self.count_argument = count_argument
+        self.catalog_argument = catalog_argument
+        self.ratio_argument = ratio_argument
+    }
 }
 
 public enum Actions {
@@ -1786,8 +1812,10 @@ public func stargen(flags: FunctionFlags, action: Actions) {
         print("Max pressure: \(MAX_HABITABLE_PRESSURE) atm")
 
     case .listCatalog:
-        for star in flags.catalog_argument.stars {
-            print("\(star.name) M: \(star.mass), L: \(star.luminosity)")
+        if let catalog = flags.catalog_argument {
+            for star in catalog.stars {
+                print("\(star.name) M: \(star.mass), L: \(star.luminosity)")
+            }
         }
 
     case .sizeCheck:
@@ -1842,7 +1870,7 @@ public func stargen(flags: FunctionFlags, action: Actions) {
             sun.age = 5e9
             sun.r_ecosphere = 1
         } else if flags.do_catalog {
-            system_count = flags.catalog_argument.count
+            system_count = flags.catalog_argument?.count ?? 0
         }
 
         for iteration in 1 ... system_count {
@@ -1851,30 +1879,34 @@ public func stargen(flags: FunctionFlags, action: Actions) {
             let outer_limit: Double
 
             if flags.do_catalog {
-                sun.mass = flags.catalog_argument.stars[iteration].mass
-                sun.luminosity = flags.catalog_argument.stars[iteration].luminosity
-                sun.name = flags.catalog_argument.stars[iteration].name
+                guard let catalog = flags.catalog_argument else {
+                    break
+                }
+                sun.mass = catalog.stars[iteration].mass
+                sun.luminosity = catalog.stars[iteration].luminosity
+                sun.name = catalog.stars[iteration].name
 
-                system_name = flags.catalog_argument.stars[iteration].desig
-                designation = flags.catalog_argument.stars[iteration].desig
+                system_name = catalog.stars[iteration].desig
+                designation = catalog.stars[iteration].desig
 
-                if flags.catalog_argument.stars[iteration].m2 > 0.001 {
+                if catalog.stars[iteration].m2 > 0.001 {
                     /*
                      *    The following is Holman & Wiegert's equation 1 from
                      *    Long-Term Stability of Planets in Binary Systems
                      *    The Astronomical Journal, 117:621-628, Jan 1999
                      */
                     let m1 = sun.mass
-                    let m2 = flags.catalog_argument.stars[iteration].m2
+                    let m2 = catalog.stars[iteration].m2
                     let mu = m2 / (m1 + m2)
-                    let e = flags.catalog_argument.stars[iteration].e
-                    let a = flags.catalog_argument.stars[iteration].a
+                    let e = catalog.stars[iteration].e
+                    let a = catalog.stars[iteration].a
                     outer_limit = (0.464 + (-0.380 * mu) + (-0.631 * e) +
                         (0.586 * mu * e) + (0.150 * pow2(e)) +
                         (-0.198 * mu * pow2(e))) * a
                 } else {
                     outer_limit = 0.0
                 }
+
             } else if flags.reuse_solar_system {
                 system_name = "Earth-M\(earth.mass * SUN_MASS_IN_EARTH_MASSES)"
                 designation = system_name
