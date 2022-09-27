@@ -217,9 +217,10 @@ func generate_stellar_system(sun: inout Sun,
                              prng: inout RNGWrapper<Xoshiro>,
                              counts: inout InterestingCounts)
 {
-    var accretionDisk = AccretionDisk(prng: prng)
+    
+    let outer_dust_limit = AccretionDisk.stellar_dust_limit(stell_mass_ratio: sun.mass)
+    var accretionDisk = AccretionDisk(prng: prng, inner_limit_of_dust: 0.0, outer_limit_of_dust: outer_dust_limit)
     var innermost_planet: Planet?
-    let outer_dust_limit = accretionDisk.stellar_dust_limit(stell_mass_ratio: sun.mass)
 
     // NOTE(heckj): This only invokes the generation sequence IF `use_seed_system` is false,
     // which I suspect means that it was an indicator that planetary refinement should be processed
@@ -239,8 +240,8 @@ func generate_stellar_system(sun: inout Sun,
         innermost_planet = accretionDisk.dist_planetary_masses(
             stell_mass_ratio: sun.mass,
             stell_luminosity_ratio: sun.luminosity,
-            inner_dust: 0.0,
-            outer_dust: outer_dust_limit,
+//            inner_dust: 0.0,
+//            outer_dust: outer_dust_limit,
             outer_planet_limit: outer_planet_limit,
             dust_density_coeff: dust_density_coeff,
             seed_system: seed_system,
@@ -1790,9 +1791,9 @@ public func stargen(flags: FunctionFlags, action: Actions) {
     let max_mass = 2.35
     var system_count = 1
 
-    let thumbnail_file = "Thumbnails"
-    let file_name = "StarGen"
-    let csv_file_name = "StarGen.csv"
+//    let thumbnail_file = "Thumbnails"
+//    let file_name = "StarGen"
+//    let csv_file_name = "StarGen.csv"
     var prng = RNGWrapper(Xoshiro(seed: flags.seed_argument))
 
     switch action {
@@ -1875,7 +1876,7 @@ public func stargen(flags: FunctionFlags, action: Actions) {
 
         for iteration in 1 ... system_count {
             let system_name: String
-            let designation: String
+//            let designation: String
             let outer_limit: Double
 
             if flags.do_catalog {
@@ -1887,7 +1888,7 @@ public func stargen(flags: FunctionFlags, action: Actions) {
                 sun.name = catalog.stars[iteration].name
 
                 system_name = catalog.stars[iteration].desig
-                designation = catalog.stars[iteration].desig
+//                designation = catalog.stars[iteration].desig
 
                 if catalog.stars[iteration].m2 > 0.001 {
                     /*
@@ -1909,15 +1910,15 @@ public func stargen(flags: FunctionFlags, action: Actions) {
 
             } else if flags.reuse_solar_system {
                 system_name = "Earth-M\(earth.mass * SUN_MASS_IN_EARTH_MASSES)"
-                designation = system_name
+//                designation = system_name
                 outer_limit = 0.0
             } else if !flags.system_name.isEmpty {
                 system_name = flags.system_name
-                designation = system_name
+//                designation = system_name
                 outer_limit = 0.0
             } else {
                 system_name = "SolarSystem \(flags.seed_argument)-\(sun.mass)"
-                designation = system_name
+//                designation = system_name
                 outer_limit = 0.0
             }
             sun.name = system_name

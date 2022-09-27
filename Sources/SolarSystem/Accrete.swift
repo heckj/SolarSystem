@@ -39,8 +39,18 @@ struct AccretionDisk {
     // dist_planetary_masses, which is the primarily call site into this...
     var prng: RNGWrapper<Xoshiro>
     
-    init(prng: RNGWrapper<Xoshiro>) {
+    init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double) {
         self.prng = prng
+        let hist = Generation(dust: nil, planet: nil, next: nil)
+        hist.dust = dust_head
+        hist.planet = planet_head
+        generation_head = hist
+        
+        let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
+        dust_head = dust
+        planet_head = nil
+        cloud_eccentricity = 0.2
+        dust_left = true
     }
     
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
@@ -61,25 +71,6 @@ struct AccretionDisk {
     //planet_pointer    planet_head    = NULL;
     //gen_pointer        hist_head    = NULL;
     
-    // called from dist_planetary_masses, which seems to be the primary entry point to these functions.
-    // NOTE(heckj): This is completely setup related, so this might be WAY more sane in an
-    // intializer during refactoring. For the initial porting, I'm trying to maintain
-    // the same basic flow as the C code.
-    mutating func set_initial_conditions(inner_limit_of_dust: Double, outer_limit_of_dust: Double) {
-        
-        // original code sets up history _before_ adding explicit dust cloud and details,
-        // so I think the first iteration of history is intended to be empty...
-        let hist = Generation(dust: nil, planet: nil, next: nil)
-        hist.dust = dust_head
-        hist.planet = planet_head
-        generation_head = hist
-        
-        let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
-        dust_head = dust
-        planet_head = nil
-        cloud_eccentricity = 0.2
-        dust_left = true
-    }
     // called from dist_planetary_masses, which seems to be the primary entry point to these functions.
     //void set_initial_conditions(long double inner_limit_of_dust,
     //                            long double outer_limit_of_dust)
@@ -102,7 +93,7 @@ struct AccretionDisk {
     //    cloud_eccentricity = 0.2;
     //}
     
-    func stellar_dust_limit(stell_mass_ratio: Double) -> Double {
+    static func stellar_dust_limit(stell_mass_ratio: Double) -> Double {
         200.0 * pow(stell_mass_ratio, (1.0/3.0))
     }
     //    long double stellar_dust_limit(long double stell_mass_ratio)
@@ -112,7 +103,7 @@ struct AccretionDisk {
     
     // Uses the stellar mass ratio to determine the closest "interior" planet
     // that would likely form. The result is in "AU".
-    func nearest_planet(stell_mass_ratio: Double) -> Double {
+    static func nearest_planet(stell_mass_ratio: Double) -> Double {
         0.3 * pow(stell_mass_ratio, (1.0/3.0))
     }
     //    long double nearest_planet(long double stell_mass_ratio)
@@ -122,7 +113,7 @@ struct AccretionDisk {
     
     // Uses the stellar mass ratio to determine the farthest planet
     // that would likely form. The result is in "AU".
-    func farthest_planet(stell_mass_ratio: Double) -> Double {
+    static func farthest_planet(stell_mass_ratio: Double) -> Double {
         50.0 * pow(stell_mass_ratio, (1.0/3.0))
     }
     //    long double farthest_planet(long double stell_mass_ratio)
@@ -401,7 +392,7 @@ struct AccretionDisk {
     
     
     // called from `accrete_dust`
-    func collect_dust(last_mass: Double, new_dust: inout Double, new_gas: inout Double, a: Double, e: Double, crit_mass: Double, dust_band: Dust?) -> Double {
+    mutating func collect_dust(last_mass: Double, new_dust: inout Double, new_gas: inout Double, a: Double, e: Double, crit_mass: Double, dust_band: Dust?) -> Double {
         // recursively sweeps through the existing dust lanes, recursively walking down the linked list of dust lanes
         // and collecting all the dust defined by the initial orbit position (a: in AU) with an eccentricity (e), the boundary
         // markers of which are calculated by inner_effect_limit() and outer_effect_limit().
@@ -423,8 +414,8 @@ struct AccretionDisk {
         var temp = last_mass / (1.0 + last_mass)
         let reduced_mass = pow(temp,(1.0 / 4.0))
         
-        var r_inner = inner_effect_limit(a: a, e: e, mass: reduced_mass);
-        let r_outer = outer_effect_limit(a: a, e: e, mass: reduced_mass);
+        r_inner = inner_effect_limit(a: a, e: e, mass: reduced_mass);
+        r_outer = outer_effect_limit(a: a, e: e, mass: reduced_mass);
         if r_inner < 0.0 {
             r_inner = 0.0
         }
@@ -1028,7 +1019,9 @@ struct AccretionDisk {
     //}
     
     // primary entry point? - called from SolarSystem
-    mutating func dist_planetary_masses(stell_mass_ratio: Double, stell_luminosity_ratio: Double, inner_dust: Double, outer_dust:Double, outer_planet_limit: Double, dust_density_coeff: Double, seed_system: Planet?, do_moons: Bool) -> Planet? {
+    mutating func dist_planetary_masses(stell_mass_ratio: Double, stell_luminosity_ratio: Double,
+                                        //inner_dust: Double, outer_dust:Double,
+                                        outer_planet_limit: Double, dust_density_coeff: Double, seed_system: Planet?, do_moons: Bool) -> Planet? {
         var a: Double // distance, in AU
         var e: Double // eccentricity of orbit
         var mass: Double = PROTOPLANET_MASS // units of Solar Mass
@@ -1039,10 +1032,9 @@ struct AccretionDisk {
         var planet_outer_bound: Double = 0
         var seeds: Planet? = seed_system
         
-        set_initial_conditions(inner_limit_of_dust: inner_dust, outer_limit_of_dust: outer_dust)
-        planet_inner_bound = nearest_planet(stell_mass_ratio: stell_mass_ratio)
+        planet_inner_bound = Self.nearest_planet(stell_mass_ratio: stell_mass_ratio)
         if planet_outer_bound == 0 {
-            planet_outer_bound = farthest_planet(stell_mass_ratio: stell_mass_ratio)
+            planet_outer_bound = Self.farthest_planet(stell_mass_ratio: stell_mass_ratio)
         } else {
             planet_outer_bound = outer_planet_limit
         }
@@ -1066,7 +1058,7 @@ struct AccretionDisk {
                               outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
                 print("Injecting protoplanet at \(a) AU")
                 
-                // NOTE(heckj): this is used in collect_dist, which is called from inside accrete_dust - and doesn't
+                // NOTE(heckj): this is used in collect_dust, which is called from inside accrete_dust - and doesn't
                 // appear to be changing, so this calculation likely doesn't need to be within the loop
                 // and could be part of setting up initial conditions.
                 dust_density = dust_density_coeff * sqrt(stell_mass_ratio) * exp(-ALPHA * pow(a,(1.0 / N)))
