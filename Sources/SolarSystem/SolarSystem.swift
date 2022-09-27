@@ -218,20 +218,13 @@ func generate_stellar_system(sun: inout Sun,
                              counts: inout InterestingCounts)
 {
     var accretionDisk = AccretionDisk(prng: prng)
-
-    if sun.mass < 0.2 || sun.mass > 1.5 {
-        sun.mass = prng.random_number(in: 0.7 ... 1.4)
-    }
+    var innermost_planet: Planet?
     let outer_dust_limit = accretionDisk.stellar_dust_limit(stell_mass_ratio: sun.mass)
 
-    if sun.luminosity == 0 {
-        sun.luminosity = luminosity(mass_ratio: sun.mass)
-    }
-    sun.r_ecosphere = sqrt(sun.luminosity)
-    sun.life = 1.0e10 * (sun.mass / sun.luminosity)
-
-    var innermost_planet: Planet?
-
+    // NOTE(heckj): This only invokes the generation sequence IF `use_seed_system` is false,
+    // which I suspect means that it was an indicator that planetary refinement should be processed
+    // against a known set (such as our solar system) without generating a sequence of new planets
+    // in order to explore and verify those algorithms.
     if use_seed_system {
         innermost_planet = seed_system
         sun.age = 5.0e9
@@ -257,15 +250,19 @@ func generate_stellar_system(sun: inout Sun,
         sun.age = prng.random_number(in: min_age ... max_age)
     }
 
-    generate_planets(sun: sun,
-                     innermost_planet: innermost_planet,
-                     random_tilt: !use_seed_system,
-                     sys_no: sys_no,
-                     system_name: system_name,
-                     do_gases: do_gases,
-                     do_moons: do_moons,
-                     prng: prng,
-                     counts: &counts)
+    generate_planet_details(sun: sun,
+                            innermost_planet: innermost_planet,
+                            random_tilt: !use_seed_system,
+                            sys_no: sys_no,
+                            system_name: system_name,
+                            do_gases: do_gases,
+                            do_moons: do_moons,
+                            prng: prng,
+                            counts: &counts)
+
+    // At this point, we have the star for the system defined in sun,
+    // the linked-list of planets in innermost_planet,
+    // and the counts of planet types, number of breathable atmospheres, habitable, etc in counts.
 }
 
 // void generate_stellar_system(sun*            sun,
@@ -1591,16 +1588,15 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
 //    }
 // }
 
-// TODO(heckj): rename this to 'refine_planets' - the planet cores are generated in Accrete, this just "fills in the details"
-func generate_planets(sun: Sun,
-                      innermost_planet: Planet?,
-                      random_tilt: Bool,
-                      sys_no _: Int,
-                      system_name: String,
-                      do_gases: Bool,
-                      do_moons: Bool,
-                      prng: RNGWrapper<Xoshiro>,
-                      counts: inout InterestingCounts)
+func generate_planet_details(sun: Sun,
+                             innermost_planet: Planet?,
+                             random_tilt: Bool,
+                             sys_no _: Int,
+                             system_name: String,
+                             do_gases: Bool,
+                             do_moons: Bool,
+                             prng: RNGWrapper<Xoshiro>,
+                             counts: inout InterestingCounts)
 {
     var planet: Planet? = innermost_planet
     var planet_no = 1
@@ -1718,12 +1714,13 @@ public struct FunctionFlags {
     }
 
     public var do_catalog: Bool
+    public var do_moons: Bool
     public var do_gases: Bool
     public var use_solar_system: Bool
     public var reuse_solar_system: Bool
     public var use_known_planets: Bool
     public var dont_generate: Bool
-    public var do_moons: Bool
+    // reporting results flags
     public var only_habitable: Bool
     public var only_multi_habitable: Bool
     public var only_jovian_habitable: Bool
@@ -1735,12 +1732,12 @@ public struct FunctionFlags {
     public var graphic_format: GraphicFormat
 
     public var system_name: String
-    public var mass_argument: Double
-    public var seed_argument: UInt64
-    public var count_argument: Int
-    public var catalog_argument: Catalog
-    public var sys_no_argument: Int
-    public var ratio_argument: Double
+    // public var sys_no_argument: Int
+    public var mass_argument: Double // number of solar masses to use as a basis for RNG generation
+    public var seed_argument: UInt64 // RNG seed
+    public var count_argument: Int // number of star systems to generate
+    public var catalog_argument: Catalog // the star catalog to use for stellar luminosity and mass
+    public var ratio_argument: Double // multiplier to the dust density coefficient
 }
 
 public enum Actions {
@@ -1893,11 +1890,23 @@ public func stargen(flags: FunctionFlags, action: Actions) {
             }
             sun.name = system_name
 
+            // Sun constraints
+
+            if sun.mass < 0.2 || sun.mass > 1.5 {
+                sun.mass = prng.random_number(in: 0.7 ... 1.4)
+            }
+            if sun.luminosity == 0 {
+                sun.luminosity = luminosity(mass_ratio: sun.mass)
+            }
+            sun.r_ecosphere = sqrt(sun.luminosity)
+            sun.life = 1.0e10 * (sun.mass / sun.luminosity)
+
             var counts = InterestingCounts()
             if flags.reuse_solar_system || flags.use_solar_system {
                 seed_planets = mercury
                 use_seed_system = true
             }
+
             generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, dust_density_coeff: dust_density_coeff, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng, counts: &counts)
         }
     }
