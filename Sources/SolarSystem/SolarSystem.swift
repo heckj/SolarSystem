@@ -1650,6 +1650,9 @@ func generate_planet_details(sun: Sun,
         if concrete_planet.next_planet != nil {
             planet = concrete_planet.next_planet
             planet_no += 1
+        } else {
+            // don't infinite loop...
+            planet = nil
         }
     }
 }

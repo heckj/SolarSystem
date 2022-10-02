@@ -18,70 +18,72 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
     print("Planets present at:")
     planet = innermost_planet
     while planet != nil {
-        guard let planet = planet else { break }
+        guard let Aplanet = planet else { break }
         let textSymbol: String
-        if planet.gas_giant {
+        if Aplanet.gas_giant {
             textSymbol = "O"
-        } else if planet.greenhouse_effect, planet.surf_pressure > 0.0 {
+        } else if Aplanet.greenhouse_effect, Aplanet.surf_pressure > 0.0 {
             textSymbol = "+"
-        } else if planet.hydrosphere > 0.05, planet.hydrosphere < 0.95 {
+        } else if Aplanet.hydrosphere > 0.05, Aplanet.hydrosphere < 0.95 {
             textSymbol = "*"
-        } else if (planet.mass * SUN_MASS_IN_EARTH_MASSES) > 0.1 {
+        } else if (Aplanet.mass * SUN_MASS_IN_EARTH_MASSES) > 0.1 {
             textSymbol = "o"
         } else {
             textSymbol = "."
         }
-        print("\(counter)\t\(planet.a.formatted(FPStyle)) AU\t\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM\t\(textSymbol)\n")
+        print("\(counter)\t\(Aplanet.a.formatted(FPStyle)) AU\t\( (Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM\t\(textSymbol)\n")
         counter += 1
+        planet = planet?.next_planet
     }
 
     print()
     planet = innermost_planet
     while planet != nil {
-        guard let planet = planet else { break }
-        print("Planet \(planet.id) \(planet.gas_giant ? "*gas giant*" : "")")
+        guard let Aplanet = planet else { break }
+        print("Planet \(Aplanet.id) \(Aplanet.gas_giant ? "*gas giant*" : "")")
 
-        if Int(planet.day) == Int(planet.orb_period * 24.0) {
+        if Int(Aplanet.day) == Int(Aplanet.orb_period * 24.0) {
             print("Planet is tidally locked with one face to star.")
         }
-        if planet.resonant_period {
+        if Aplanet.resonant_period {
             print("Planet's rotation is in a resonant spin lock with the star")
         }
-        print("   Distance from primary star:\t\(planet.a.formatted(FPStyle))\tAU")
-        print("   Mass:\t\t\t\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tEarth masses")
-        if !(planet.gas_giant) {
-            print("   Surface gravity:\t\t\(planet.surf_grav.formatted(FPStyle))\tEarth Gs")
-            print("   Surface pressure:\t\t\( (planet.surf_pressure / 1000.0).formatted(FPStyle) )\tEarth atmospheres")
-            if planet.greenhouse_effect, planet.surf_pressure > 0.0 {
+        print("   Distance from primary star:\t\(Aplanet.a.formatted(FPStyle))\tAU")
+        print("   Mass:\t\t\t\( (Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tEarth masses")
+        if !(Aplanet.gas_giant) {
+            print("   Surface gravity:\t\t\(Aplanet.surf_grav.formatted(FPStyle))\tEarth Gs")
+            print("   Surface pressure:\t\t\( (Aplanet.surf_pressure / 1000.0).formatted(FPStyle) )\tEarth atmospheres")
+            if Aplanet.greenhouse_effect, Aplanet.surf_pressure > 0.0 {
                 print("\tGREENHOUSE EFFECT")
             }
-            print("   Surface temperature:\t\t\( (planet.surf_temp - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius\n")
+            print("   Surface temperature:\t\t\( (Aplanet.surf_temp - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius\n")
         }
-        print("   Equatorial radius:\t\t\(planet.radius.formatted(FPStyle))\tKm")
-        print("   Density:\t\t\t\(planet.density.formatted(FPStyle))\tgrams/cc")
-        print("   Eccentricity of orbit:\t\(planet.e.formatted(FPStyle))")
-        print("   Escape Velocity:\t\t\( (planet.esc_velocity / CM_PER_KM).formatted(FPStyle) )\tKm/sec")
-        print("   Molecular weight retained:\t\(planet.molec_weight.formatted(FPStyle)) and above")
-        print("   Surface acceleration:\t\(planet.surf_accel.formatted(FPStyle))\tcm/sec2")
-        print("   Axial tilt:\t\t\t\(planet.axial_tilt.formatted(FPStyle))\tdegrees")
-        print("   Planetary albedo:\t\t\(planet.albedo.formatted(FPStyle))")
-        print("   Length of year:\t\t\(planet.orb_period.formatted(FPStyle))\tdays")
-        print("   Length of day:\t\t\(planet.day.formatted(FPStyle))\thours")
-        if !(planet.gas_giant) {
-            print("   Boiling point of water:\t\( (planet.boil_point - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius")
-            print("   Hydrosphere percentage:\t\( (planet.hydrosphere * 100.0).formatted(FPStyle))")
-            print("   Cloud cover percentage:\t\( (planet.cloud_cover * 100).formatted(FPStyle))")
-            print("   Ice cover percentage:\t\( (planet.ice_cover * 100).formatted(FPStyle) )")
+        print("   Equatorial radius:\t\t\(Aplanet.radius.formatted(FPStyle))\tKm")
+        print("   Density:\t\t\t\(Aplanet.density.formatted(FPStyle))\tgrams/cc")
+        print("   Eccentricity of orbit:\t\(Aplanet.e.formatted(FPStyle))")
+        print("   Escape Velocity:\t\t\( (Aplanet.esc_velocity / CM_PER_KM).formatted(FPStyle) )\tKm/sec")
+        print("   Molecular weight retained:\t\(Aplanet.molec_weight.formatted(FPStyle)) and above")
+        print("   Surface acceleration:\t\(Aplanet.surf_accel.formatted(FPStyle))\tcm/sec2")
+        print("   Axial tilt:\t\t\t\(Aplanet.axial_tilt.formatted(FPStyle))\tdegrees")
+        print("   Planetary albedo:\t\t\(Aplanet.albedo.formatted(FPStyle))")
+        print("   Length of year:\t\t\(Aplanet.orb_period.formatted(FPStyle))\tdays")
+        print("   Length of day:\t\t\(Aplanet.day.formatted(FPStyle))\thours")
+        if !(Aplanet.gas_giant) {
+            print("   Boiling point of water:\t\( (Aplanet.boil_point - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius")
+            print("   Hydrosphere percentage:\t\( (Aplanet.hydrosphere * 100.0).formatted(FPStyle))")
+            print("   Cloud cover percentage:\t\( (Aplanet.cloud_cover * 100).formatted(FPStyle))")
+            print("   Ice cover percentage:\t\( (Aplanet.ice_cover * 100).formatted(FPStyle) )")
         }
         print()
 
         if do_gases,
-           planet.planet_type != .gasgiant,
-           planet.planet_type != .subgasgiant,
-           planet.planet_type != .subsubgasgiant
+           Aplanet.planet_type != .gasgiant,
+           Aplanet.planet_type != .subgasgiant,
+           Aplanet.planet_type != .subsubgasgiant
         {
             // gases?
         }
+        planet = planet?.next_planet
     }
 }
 
