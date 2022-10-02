@@ -26,6 +26,9 @@ import Foundation
 // when you include `moons`, so that may well best sit as a linked-list structure.
 
 struct AccretionDisk {
+    
+    let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1...4))
+    
     var dust_left: Bool = true
     var r_inner: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
     var r_outer: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
@@ -38,13 +41,15 @@ struct AccretionDisk {
     // NOTE(heckj): create a proper initializer to set this value, aligned somewhere between the initializer and calling
     // dist_planetary_masses, which is the primarily call site into this...
     var prng: RNGWrapper<Xoshiro>
-    
+    var dust_head: Dust?
+    var planet_head: Planet?
+
     init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double) {
         self.prng = prng
-        let hist = Generation(dust: nil, planet: nil, next: nil)
-        hist.dust = dust_head
-        hist.planet = planet_head
-        generation_head = hist
+//        let hist = Generation(dust: nil, planet: nil, next: nil)
+//        hist.dust = dust_head
+//        hist.planet = planet_head
+//        generation_head = hist
         
         let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
         dust_head = dust
@@ -56,9 +61,7 @@ struct AccretionDisk {
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
     // in C, so I've transferred that structure to reference types (final class), originally
     // defined in structs.h to the types included within Types.swift.
-    var dust_head: Dust? = nil
-    var planet_head: Planet? = nil
-    var generation_head: Generation? = nil
+//    var generation_head: Generation? = nil
     
     ///* Now for some variables global to the accretion process:        */
     //int             dust_left;
@@ -280,7 +283,6 @@ struct AccretionDisk {
             node1 = node1?.next_band
         }
     }
-    
     
     // called from `accrete_dust`
     //void update_dust_lanes(long double min, long double max, long double mass,
@@ -726,6 +728,7 @@ struct AccretionDisk {
                         }
                     }
                 }
+                
                 if !finished {
                     print("Collision between two planetesimals! \(this_planet.a) AU (\(this_planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(mass * SUN_MASS_IN_EARTH_MASSES)EM = \(dust_mass * SUN_MASS_IN_EARTH_MASSES)EMd + \(gas_mass * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(new_a) AU (\(e))")
                     temp = this_planet.mass + mass
@@ -739,16 +742,16 @@ struct AccretionDisk {
                         this_planet.gas_giant = true
                     }
                     
-                    // Walk the list of planets and move the linked list around to re-order the planetisimals
-                    while (the_planet!.next_planet != nil && the_planet!.next_planet!.a < new_a) {
-                        next_planet = the_planet!.next_planet
+                    // Walk the list of planets and move the linked list around to re-order the planetesimals
+                    while (this_planet.next_planet != nil && this_planet.next_planet!.a < new_a) {
+                        next_planet = this_planet.next_planet
                         if (the_planet == planet_head) {
                             planet_head = next_planet
                         } else {
                             prev_planet?.next_planet = next_planet
                         }
-                        the_planet?.next_planet = next_planet?.next_planet
-                        next_planet?.next_planet = the_planet
+                        this_planet.next_planet = next_planet?.next_planet
+                        next_planet?.next_planet = this_planet
                         prev_planet = next_planet
                     }
                 }
@@ -756,6 +759,28 @@ struct AccretionDisk {
                 break
             } else {
                 prev_planet = the_planet
+            }
+        }
+
+        // Planetesimals didn't collide. Make it a planet.
+        if (!finished) {
+            the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: mass, gas_giant: (mass >= crit_mass), dust_mass: dust_mass, gas_mass: gas_mass, next_planet: nil)
+
+            if planet_head == nil {
+                planet_head = the_planet
+            } else if a < planet_head!.a {
+                the_planet?.next_planet = planet_head
+                planet_head = the_planet
+            } else if planet_head!.next_planet == nil {
+                planet_head?.next_planet = the_planet
+            } else {
+                next_planet = planet_head
+                while (next_planet != nil && next_planet!.a < a) {
+                    prev_planet = next_planet
+                    next_planet = next_planet!.next_planet
+                }
+                the_planet?.next_planet = next_planet
+                prev_planet?.next_planet = the_planet
             }
         }
     }
@@ -1043,6 +1068,16 @@ struct AccretionDisk {
         // (called 'gravitational instability' in current (~2020) astrophysics research)
         // and continue to deploy "seeds" until the dust of the disk is "consumed".
         while(dust_left) {
+            
+            print("DUST STATUS")
+            for dust_lane in sequence(first: dust_head, next: \.?.next_band) {
+                guard let dust_lane = dust_lane else {
+                    break
+                }
+                let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
+                print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
+            }
+            
             if let definitely_seed = seeds {
                 a = definitely_seed.a
                 e = definitely_seed.e
@@ -1052,11 +1087,11 @@ struct AccretionDisk {
                 e = prng.random_eccentricity()
             }
 
-            print("Checking \(a) AU")
+            print("Checking \(a.formatted(FPStyle)) AU")
 
             if dust_available(inside_range: inner_effect_limit(a: a, e: e, mass: mass),
                               outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
-                print("Injecting protoplanet at \(a) AU")
+                print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
                 
                 // NOTE(heckj): this is used in collect_dust, which is called from inside accrete_dust - and doesn't
                 // appear to be changing, so this calculation likely doesn't need to be within the loop
@@ -1076,6 +1111,21 @@ struct AccretionDisk {
                 }
 
             }
+        }
+        print("DUST CONSUMED")
+        for dust_lane in sequence(first: dust_head, next: \.?.next_band) {
+            guard let dust_lane = dust_lane else {
+                break
+            }
+            let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
+            print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
+        }
+
+        for some_planet in sequence(first: planet_head, next: \.?.next_planet) {
+            guard let some_planet = some_planet else {
+                break
+            }
+            print(" \(some_planet.a.formatted(FPStyle)) AU : \(some_planet.planet_no) \(some_planet.id) \( (some_planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
         }
         return(planet_head)
     }
