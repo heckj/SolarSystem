@@ -1125,7 +1125,7 @@ struct AccretionDisk {
             guard let some_planet = some_planet else {
                 break
             }
-            print(" \(some_planet.a.formatted(FPStyle)) AU : \(some_planet.planet_no) \(some_planet.id) \( (some_planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
+            print(" \(some_planet.a.formatted(FPStyle)) AU : \(some_planet.id) \( (some_planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
         }
         return(planet_head)
     }

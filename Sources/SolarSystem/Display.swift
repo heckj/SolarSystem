@@ -10,10 +10,10 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
 
     print("SolarSystem Generation seed: \(seed)")
     print("                          SYSTEM  CHARACTERISTICS")
-    print("Stellar mass: \(sun.mass) solar masses")
-    print("Stellar luminosity: \(sun.luminosity)")
-    print("Age: \(sun.age / 1.0e9) billion years (\((sun.life - sun.age) / 1.0e9) billion left on main sequence)")
-    print("Habitable ecosphere radius: \(sun.r_ecosphere) AU")
+    print("Stellar mass: \(sun.mass.formatted(FPStyle)) solar masses")
+    print("Stellar luminosity: \(sun.luminosity.formatted(FPStyle))")
+    print("Age: \( (sun.age / 1.0e9).formatted(FPStyle) ) billion years (\( ((sun.life - sun.age) / 1.0e9).formatted(FPStyle)) billion left on main sequence)")
+    print("Habitable ecosphere radius: \(sun.r_ecosphere.formatted(FPStyle)) AU")
     print()
     print("Planets present at:")
     planet = innermost_planet
@@ -31,7 +31,7 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
         } else {
             textSymbol = "."
         }
-        print("\(counter)\t\(planet.a) AU\t\(planet.mass * SUN_MASS_IN_EARTH_MASSES) EM\t\(textSymbol)\n")
+        print("\(counter)\t\(planet.a.formatted(FPStyle)) AU\t\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM\t\(textSymbol)\n")
         counter += 1
     }
 
@@ -47,31 +47,31 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
         if planet.resonant_period {
             print("Planet's rotation is in a resonant spin lock with the star")
         }
-        print("   Distance from primary star:\t\(planet.a)\tAU")
-        print("   Mass:\t\t\t\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tEarth masses")
+        print("   Distance from primary star:\t\(planet.a.formatted(FPStyle))\tAU")
+        print("   Mass:\t\t\t\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tEarth masses")
         if !(planet.gas_giant) {
-            print("   Surface gravity:\t\t\(planet.surf_grav)\tEarth Gs")
-            print("   Surface pressure:\t\t\(planet.surf_pressure / 1000.0)\tEarth atmospheres")
+            print("   Surface gravity:\t\t\(planet.surf_grav.formatted(FPStyle))\tEarth Gs")
+            print("   Surface pressure:\t\t\( (planet.surf_pressure / 1000.0).formatted(FPStyle) )\tEarth atmospheres")
             if planet.greenhouse_effect, planet.surf_pressure > 0.0 {
                 print("\tGREENHOUSE EFFECT")
             }
-            print("   Surface temperature:\t\t\(planet.surf_temp - FREEZING_POINT_OF_WATER)\tdegrees Celcius\n")
+            print("   Surface temperature:\t\t\( (planet.surf_temp - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius\n")
         }
-        print("   Equatorial radius:\t\t\(planet.radius)\tKm")
-        print("   Density:\t\t\t\(planet.density)\tgrams/cc")
-        print("   Eccentricity of orbit:\t\(planet.e)")
-        print("   Escape Velocity:\t\t\(planet.esc_velocity / CM_PER_KM)\tKm/sec")
-        print("   Molecular weight retained:\t\(planet.molec_weight) and above")
-        print("   Surface acceleration:\t\(planet.surf_accel)\tcm/sec2")
-        print("   Axial tilt:\t\t\t\(planet.axial_tilt)\tdegrees")
-        print("   Planetary albedo:\t\t\(planet.albedo)")
-        print("   Length of year:\t\t\(planet.orb_period)\tdays")
-        print("   Length of day:\t\t\(planet.day)\thours")
+        print("   Equatorial radius:\t\t\(planet.radius.formatted(FPStyle))\tKm")
+        print("   Density:\t\t\t\(planet.density.formatted(FPStyle))\tgrams/cc")
+        print("   Eccentricity of orbit:\t\(planet.e.formatted(FPStyle))")
+        print("   Escape Velocity:\t\t\( (planet.esc_velocity / CM_PER_KM).formatted(FPStyle) )\tKm/sec")
+        print("   Molecular weight retained:\t\(planet.molec_weight.formatted(FPStyle)) and above")
+        print("   Surface acceleration:\t\(planet.surf_accel.formatted(FPStyle))\tcm/sec2")
+        print("   Axial tilt:\t\t\t\(planet.axial_tilt.formatted(FPStyle))\tdegrees")
+        print("   Planetary albedo:\t\t\(planet.albedo.formatted(FPStyle))")
+        print("   Length of year:\t\t\(planet.orb_period.formatted(FPStyle))\tdays")
+        print("   Length of day:\t\t\(planet.day.formatted(FPStyle))\thours")
         if !(planet.gas_giant) {
-            print("   Boiling point of water:\t\(planet.boil_point - FREEZING_POINT_OF_WATER)\tdegrees Celcius")
-            print("   Hydrosphere percentage:\t\(planet.hydrosphere * 100.0)")
-            print("   Cloud cover percentage:\t\(planet.cloud_cover * 100)")
-            print("   Ice cover percentage:\t\(planet.ice_cover * 100)")
+            print("   Boiling point of water:\t\( (planet.boil_point - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius")
+            print("   Hydrosphere percentage:\t\( (planet.hydrosphere * 100.0).formatted(FPStyle))")
+            print("   Cloud cover percentage:\t\( (planet.cloud_cover * 100).formatted(FPStyle))")
+            print("   Ice cover percentage:\t\( (planet.ice_cover * 100).formatted(FPStyle) )")
         }
         print()
 

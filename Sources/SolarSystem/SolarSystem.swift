@@ -2,6 +2,8 @@ import Foundation
 
 public struct SolarSystem {}
 
+let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1...4))
+
 /*
  *    StarGen main API
  */
