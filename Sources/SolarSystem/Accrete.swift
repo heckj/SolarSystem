@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import Combine
 
 /*------------------------------------------------------------------------*/
 /*                             BIBLIOGRAPHY                               */
@@ -43,19 +44,17 @@ struct AccretionDisk {
     var prng: RNGWrapper<Xoshiro>
     var dust_head: Dust?
     var planet_head: Planet?
+    
+    let updater: PassthroughSubject<([Dust], [Planet]), Never>
 
     init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double) {
         self.prng = prng
-//        let hist = Generation(dust: nil, planet: nil, next: nil)
-//        hist.dust = dust_head
-//        hist.planet = planet_head
-//        generation_head = hist
-        
         let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
         dust_head = dust
         planet_head = nil
         cloud_eccentricity = 0.2
         dust_left = true
+        updater = PassthroughSubject<([Dust], [Planet]), Never>()
     }
     
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
@@ -1070,12 +1069,24 @@ struct AccretionDisk {
         while(dust_left) {
             
             print("DUST STATUS")
-            for dust_lane in sequence(first: dust_head, next: \.?.next_band) {
-                guard let dust_lane = dust_lane else {
-                    break
+            do {
+                var current_dust_lanes: [Dust] = []
+                var current_planets: [Planet] = []
+
+                if let firstDustLane = dust_head {
+                    for dust_lane in sequence(first: firstDustLane, next: \.next_band) {
+                        current_dust_lanes.append(dust_lane)
+                        let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
+                        print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
+                    }
                 }
-                let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
-                print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
+
+                if let firstPlanet = planet_head {
+                    for some_planet in sequence(first: firstPlanet, next: \.next_planet) {
+                        current_planets.append(some_planet)
+                    }
+                }
+                updater.send((current_dust_lanes, current_planets))
             }
             
             if let definitely_seed = seeds {
@@ -1112,21 +1123,29 @@ struct AccretionDisk {
 
             }
         }
+        
         print("DUST CONSUMED")
-        for dust_lane in sequence(first: dust_head, next: \.?.next_band) {
-            guard let dust_lane = dust_lane else {
-                break
+        do {
+            var current_dust_lanes: [Dust] = []
+            var current_planets: [Planet] = []
+
+            if let firstDustLane = dust_head {
+                for dust_lane in sequence(first: firstDustLane, next: \.next_band) {
+                    current_dust_lanes.append(dust_lane)
+                    let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
+                    print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
+                }
             }
-            let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
-            print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
+
+            if let firstPlanet = planet_head {
+                for some_planet in sequence(first: firstPlanet, next: \.next_planet) {
+                    current_planets.append(some_planet)
+                    print(" \(some_planet.a.formatted(FPStyle)) AU : \(some_planet.id) \( (some_planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
+                }
+            }
+            updater.send((current_dust_lanes, current_planets))
         }
 
-        for some_planet in sequence(first: planet_head, next: \.?.next_planet) {
-            guard let some_planet = some_planet else {
-                break
-            }
-            print(" \(some_planet.a.formatted(FPStyle)) AU : \(some_planet.id) \( (some_planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
-        }
         return(planet_head)
     }
     

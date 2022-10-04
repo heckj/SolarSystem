@@ -211,7 +211,7 @@ public final class Planet: Equatable {
 /*    Define the solar system for comparisons, etc. */
 // #define ZEROES 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,NULL,0,NULL,tUnknown
 
-final class Dust {
+public final class Dust {
     var inner_edge: Double
     var outer_edge: Double
     var dust_present: Bool
