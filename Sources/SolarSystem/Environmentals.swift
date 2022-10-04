@@ -38,7 +38,7 @@ extension Breathability: CustomStringConvertible {
     }
 }
 
-func luminosity(mass_ratio: Double) -> Double {
+public func luminosity(mass_ratio: Double) -> Double {
     let n: Double
     if mass_ratio < 1.0 {
         n = 1.75 * (mass_ratio - 0.1) + 3.325
