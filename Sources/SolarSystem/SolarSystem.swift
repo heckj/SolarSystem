@@ -263,6 +263,7 @@ func generate_stellar_system(sun: inout Sun,
                             prng: prng,
                             counts: &counts)
 
+    print(" .. GENERATION FINISHED")
     // At this point, we have the star for the system defined in sun,
     // the linked-list of planets in innermost_planet,
     // and the counts of planet types, number of breathable atmospheres, habitable, etc in counts.
@@ -372,7 +373,7 @@ func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
                 // gas, to be updated after we've computed the total amount of gas to arrange the appropriate surface
                 // pressures.
                 if ["O", "N", "Ar", "He", "CO2"].contains(gas.symbol) {
-                    print("\(planet.mass * SUN_MASS_IN_EARTH_MASSES) \(gas.symbol), \(amount) = \(abund) * \(pvrms) * \(react) * \(pres2) * \(fract) (\(planet.gas_mass / planet.mass * 100.0)")
+                    print(" .. .. .. \( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) ) \(gas.symbol), \(amount.formatted(FPStyle)) = \(abund.formatted(FPStyle)) * \(pvrms.formatted(FPStyle)) * \(react.formatted(FPStyle)) * \(pres2.formatted(FPStyle)) * \(fract.formatted(FPStyle)) (ratio \( (planet.gas_mass / planet.mass).formatted(.percent) ))")
                 }
             }
         } // foreach gas
@@ -385,15 +386,15 @@ func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
             if gas.type.num == AN_O, inspired_partial_pressure(surf_pressure: planet.surf_pressure, gas_pressure: gas.surf_pressure) > gas.type.max_ipp {
                 print("\(planet_id) Poisoned by O2")
             }
-
-            planet.atmosphere.sort { gasA, gasB in
-                gasA.surf_pressure > gasB.surf_pressure
-            }
-            print("\(planet_id), (\(planet.a) AU) gases:")
-            for gas in planet.atmosphere {
-                print("\(gas.type.symbol): \(gas.surf_pressure), \(gas.surf_pressure / planet.surf_pressure * 100.0)")
-            }
         }
+        planet.atmosphere.sort { gasA, gasB in
+            gasA.surf_pressure > gasB.surf_pressure
+        }
+        print("\(planet_id), (\(planet.a.formatted(FPStyle)) AU) gases:")
+        for gas in planet.atmosphere {
+            print("    \(gas.type.symbol): \(gas.surf_pressure.formatted(FPStyle)), \( (gas.surf_pressure / planet.surf_pressure).formatted(.percent) )")
+        }
+
     }
 
     // void calculate_gases(sun*            sun,
@@ -599,6 +600,7 @@ func generate_planet(planet: Planet,
        (planet.gas_mass / planet.mass) > 0.05,
        min_molec_weight(planet: planet) <= 4.0
     {
+        print(" .. .. Gas Giant with mass ratio (gas/mass) of \( (planet.gas_mass / planet.mass).formatted(FPStyle) )")
         if (planet.gas_mass / planet.mass) < 0.20 {
             planet.planet_type = .subsubgasgiant
         } else if (planet.mass * SUN_MASS_IN_EARTH_MASSES) < 20.0 {
@@ -608,19 +610,19 @@ func generate_planet(planet: Planet,
         }
     } else {
         // If not, it's rocky.
+        print(" .. .. Rocky Planet")
         planet.radius = kothari_radius(mass: planet.mass, giant: false, zone: planet.orbit_zone)
         planet.density = volume_density(mass: planet.mass, equat_radius: planet.radius)
 
         planet.surf_accel = acceleration(mass: planet.mass, radius: planet.radius)
         planet.surf_grav = gravity(acceleration: planet.surf_accel)
-
         if (planet.gas_mass / planet.mass) > 0.000001 {
             let h2_mass = planet.gas_mass * 0.85
             let he_mass = (planet.gas_mass - h2_mass) * 0.999
 
             var h2_loss = 0.0
             var he_loss = 0.0
-
+            print(" .. .. atmosphere (gas/mass ratio: \( (planet.gas_mass / planet.mass).formatted(FPStyle) ))")
             let h2_life = gas_life(molecular_weight: MOL_HYDROGEN, planet: planet)
             let he_life = gas_life(molecular_weight: HELIUM, planet: planet)
 
@@ -643,10 +645,9 @@ func generate_planet(planet: Planet,
                 planet.surf_accel = acceleration(mass: planet.mass, radius: planet.radius)
                 planet.surf_grav = gravity(acceleration: planet.surf_accel)
             }
-            //        if (((h2_loss + he_loss) > .000001) && (flag_verbose & 0x0080))
-            //            fprintf (stderr, "%s\tLosing gas: H2: %5.3Lf EM, He: %5.3Lf EM\n",
-            //                     planet_id,
-            //                     h2_loss * SUN_MASS_IN_EARTH_MASSES, he_loss * SUN_MASS_IN_EARTH_MASSES);
+            if (h2_loss + he_loss) > 0.000001 {
+                print(" .. .. \(planet_id) losing gas: H2 \( (h2_loss * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) ) EM, He \((he_loss * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
+            }
         }
 
         planet.day = day_length(planet: planet) /* Modifies planet->resonant_period */
@@ -680,21 +681,7 @@ func generate_planet(planet: Planet,
             {
                 counts.habitable_jovians += 1
 
-                //                        if (flag_verbose & 0x8000)
-                //                        {
-                //                            fprintf (stderr, "%s\t%s (%4.2LfEM %5.3Lf By)%s with earth-like temperature (%.1Lf C, %.1Lf F, %+.1Lf C Earth).\n",
-                //                                     planet_id,
-                //                                     planet->type == tGasGiant ? "Jovian" :
-                //                                     planet->type == tSubGasGiant ? "Sub-Jovian" :
-                //                                     planet->type == tSubSubGasGiant ? "Gas Dwarf" :
-                //                                     "Big",
-                //                                     planet->mass * SUN_MASS_IN_EARTH_MASSES,
-                //                                     sun->age /1.0E9,
-                //                                     planet->first_moon == NULL ? "" : " WITH MOON",
-                //                                     temp - FREEZING_POINT_OF_WATER,
-                //                                     32 + ((temp - FREEZING_POINT_OF_WATER) * 1.8),
-                //                                     temp - EARTH_AVERAGE_KELVIN);
-                //                        }
+                print(" .. .. \(planet_id) (\((planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )EM, age \( (sun.age/1.0e9).formatted(FPStyle) )) at \( (planet.estimated_terr_temp - FREEZING_POINT_OF_WATER) )°C")
             }
         } else {
             // rocky world, not gas giant
@@ -737,7 +724,9 @@ func generate_planet(planet: Planet,
                planet.max_temp >= FREEZING_POINT_OF_WATER,
                planet.min_temp <= planet.boil_point
             {
+                print(" .. CALCULATE GASES")
                 calculate_gases(sun: sun, planet: planet, planet_id: planet_id)
+                print(" .. CALCULATE GASES (done)")
             }
 
             /*
@@ -795,10 +784,12 @@ func generate_planet(planet: Planet,
                     //                                             (planet->resonant_period)) ? "(1-Face)" : ""
                     //                                     );
                 }
+                print(" .. .. .. -> planet type determined: \(planet.planet_type)")
             }
         }
 
         if do_moons, !is_moon {
+            print(" .. .. .. PROCESSING MOONS")
             if planet.first_moon != nil {
                 var n: Int = 0
                 var ptr: Planet? = planet.first_moon
@@ -1289,13 +1280,13 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
         }
 
         if list_it {
-            print("\(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\tl=\(illumination)\t\(planet_id)")
+            print("\(planet.planet_type)\tp=\(planet.surf_pressure.formatted(FPStyle))\tm=\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tg=\(planet.surf_grav.formatted(FPStyle))\tt=\( (planet.surf_temp - EARTH_AVERAGE_KELVIN).formatted(FPStyle) )\tl=\(illumination.formatted(FPStyle))\t\(planet_id)")
         }
     }
 
     if is_moon && max_moon_mass < planet.mass {
         max_moon_mass = planet.mass
-        print("\(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
+        print("moon \(planet.planet_type)\tp=\(planet.surf_pressure.formatted(FPStyle))\tm=\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tg=\(planet.surf_grav.formatted(FPStyle))\tt=\( (planet.surf_temp - EARTH_AVERAGE_KELVIN).formatted(FPStyle) )\t\(planet_id)")
     }
 
     if planet.dust_mass * SUN_MASS_IN_EARTH_MASSES >= 0.0006,
@@ -1306,7 +1297,7 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
         let core_size = Int((50.0 * planet.core_radius) / planet.radius)
 
         if core_size <= 49 {
-            print("\(planet.planet_type)\tp=\(planet.core_radius)\tr=\(planet.radius)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\t\(planet_id)\t\(50 - core_size)")
+            print("\(planet.planet_type)\tp=\(planet.core_radius.formatted(FPStyle))\tr=\(planet.radius.formatted(FPStyle))\tm=\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\t\(planet_id)\t\(50 - core_size)")
         }
     }
 
@@ -1332,14 +1323,14 @@ func check_planet(planet: Planet, planet_id: String, is_moon: Bool, counts: inou
        breathe == .breathable
     {
         counts.earthlike += 1
-        print("EARTHLIKE: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
+        print("EARTHLIKE: \(planet.planet_type)\tp=\(planet.surf_pressure.formatted(FPStyle))\tm=\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tg=\(planet.surf_grav.formatted(FPStyle))\tt=\( (planet.surf_temp - EARTH_AVERAGE_KELVIN).formatted(FPStyle) )\t\(planet_id)")
 
     } else if breathe == .breathable,
               gravity > 1.3,
               habitable,
               (rel_temp < -2.0) || (ice > 10.0)
     {
-        print("Sphinx-like: \(planet.planet_type)\tp=\(planet.surf_pressure)\tm=\(planet.mass * SUN_MASS_IN_EARTH_MASSES)\tg=\(planet.surf_grav)\tt=\(planet.surf_temp - EARTH_AVERAGE_KELVIN)\t\(planet_id)")
+        print("Sphinx-like: \(planet.planet_type)\tp=\(planet.surf_pressure.formatted(FPStyle))\tm=\( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tg=\(planet.surf_grav.formatted(FPStyle))\tt=\( (planet.surf_temp - EARTH_AVERAGE_KELVIN).formatted(FPStyle) )\t\(planet_id)")
     }
 }
 
@@ -1605,6 +1596,7 @@ func generate_planet_details(sun: Sun,
 {
     var planet: Planet? = innermost_planet
     var planet_no = 1
+    print(" .. GENERATE PLANET DETAILS")
 
     while planet != nil {
         guard let concrete_planet = planet else {
@@ -1613,7 +1605,7 @@ func generate_planet_details(sun: Sun,
         let planet_id = "\(system_name) \(planet_no)"
         //                "%s (-s%ld -%c%d) %d",
         //                system_name, flag_seed, flag_char, sys_no, planet_no);
-
+        print(" .. SYNTHESIZING DETAILS FOR \(planet_id) (\(concrete_planet.a.formatted(FPStyle)) AU)")
         generate_planet(planet: concrete_planet,
                         planet_no: planet_no,
                         sun: sun,
@@ -1630,6 +1622,7 @@ func generate_planet_details(sun: Sun,
          *    so we can count and log them and such
          */
 
+        print(" .. CHECK PLANET FOR \(planet_id) (\(concrete_planet.a.formatted(FPStyle)) AU)")
         check_planet(planet: concrete_planet, planet_id: planet_id, is_moon: false, counts: &counts)
         var moon: Planet? = concrete_planet.first_moon
         var moons = 1
@@ -1640,6 +1633,7 @@ func generate_planet_details(sun: Sun,
             }
 
             let moon_id = "\(planet_id).\(moons)"
+            print(" .. CHECK PLANET FOR \(moon_id) (\(concrete_moon.a.formatted(FPStyle)) AU)")
             check_planet(planet: concrete_moon, planet_id: moon_id, is_moon: true, counts: &counts)
             if concrete_moon.next_planet != nil {
                 moon = concrete_moon.next_planet
