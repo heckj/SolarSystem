@@ -1107,7 +1107,7 @@ public struct AccretionDisk {
         return AccretionState(dustlanes: current_dust_lanes, planets: current_planets, dust_left: dust_left)
     }
     
-    mutating func advance() {
+    public mutating func advance() {
         var a: Double // distance, in AU
         var e: Double // eccentricity of orbit
         var mass: Double = PROTOPLANET_MASS // units of Solar Mass

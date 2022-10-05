@@ -20,41 +20,32 @@ struct AccretionView: View {
         } else {
             return "_"
         }
-        
     }
     
     let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0...3))
     
-    let accretionDisk: AccretionDisk
-    @State var accreteState: AccretionState? = nil
+    @ObservedObject var accretionDisk: AccretionModel
+    
     var body: some View {
         VStack {
+            Text("\(accretionDisk.solar_masses) \u{2609} Solar Masses")
             Button {
                 print("hi")
+                accretionDisk.adv()
             } label: {
                 Image(systemName: "play")
             }
-
-            Text("\(accretionDisk.stellar_mass_ratio) \u{2609} Solar Masses")
-            if let accreteState = accreteState {
-                ForEach(accreteState.dustlanes, id: \.inner_edge) { dustlane in
-                    Text("\(dustlane.inner_edge.formatted(tight)) - \(dustlane.outer_edge.formatted(tight)) \(dustSymbol(dustlane))")
-                }
-                AccretionStateView(accretionState: accreteState)
-            }
-        }
-        .onAppear() {
-            accreteState = accretionDisk.currentState()
+            AccretionStateView(accretionState: accretionDisk.state)
         }
     }
     
-    init(mass: Double) {
-        self.accretionDisk = AccretionDisk(prng: RNGWrapper(Xoshiro(seed: 23)), inner_limit_of_dust: 0.0, outer_limit_of_dust: 0.0, stellar_mass_ratio: mass, stellar_luminosity_ratio: luminosity(mass_ratio: mass))
+    init(model: AccretionModel) {
+        self.accretionDisk = model
     }
 }
 
 struct AccretionView_Previews: PreviewProvider {
     static var previews: some View {
-        AccretionView(mass: 1.0).frame(width: 300, height: 300)
+        AccretionView(model: AccretionModel(mass: 1.1)).frame(width: 300, height: 300)
     }
 }

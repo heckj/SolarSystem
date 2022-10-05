@@ -77,7 +77,7 @@ struct AccretionStateView: View {
                     ctx.stroke(planetCircle, with: .color(.blue))
                 }
             }.frame(height: 50)
-        }.frame(width: 300, height: 500)
+        }
     }
     
     public init(accretionState: AccretionState) {
@@ -105,7 +105,9 @@ struct AccretionStateView: View {
 struct AccretionStateView_Previews: PreviewProvider {
     static var previews: some View {
         AccretionStateView(accretionState: AccretionState.example)
+            .frame(width: 300, height: 500)
         
         AccretionStateView(accretionState: AccretionDisk(prng: RNGWrapper(Xoshiro(seed: 23)), inner_limit_of_dust: 0.0, outer_limit_of_dust: 0.0, stellar_mass_ratio: 1.1, stellar_luminosity_ratio: luminosity(mass_ratio: 1.1)).currentState())
+            .frame(width: 300, height: 500)
     }
 }

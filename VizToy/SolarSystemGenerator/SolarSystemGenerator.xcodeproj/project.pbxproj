@@ -18,6 +18,7 @@
 		1A47B1F528E3CD8600645DDF /* SwiftVizScale in Frameworks */ = {isa = PBXBuildFile; productRef = 1A47B1F428E3CD8600645DDF /* SwiftVizScale */; };
 		1A47B1F828E3CDD400645DDF /* SolarSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 1A47B1F728E3CDD400645DDF /* SolarSystem */; };
 		1A5F4C6828EDFEC200AB1F4A /* AccretionStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A5F4C6728EDFEC200AB1F4A /* AccretionStateView.swift */; };
+		1A5F4C6A28EE1AA300AB1F4A /* AccretionModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A5F4C6928EE1AA300AB1F4A /* AccretionModel.swift */; };
 		1ADE52D028EBC39400D8432E /* StarMassSelectorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1ADE52CF28EBC39400D8432E /* StarMassSelectorView.swift */; };
 /* End PBXBuildFile section */
 
@@ -53,6 +54,7 @@
 		1A47B1E628E3CD3F00645DDF /* SolarSystemGeneratorUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarSystemGeneratorUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		1A47B1FA28E3CE3C00645DDF /* SolarSystem */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = SolarSystem; path = ../..; sourceTree = "<group>"; };
 		1A5F4C6728EDFEC200AB1F4A /* AccretionStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccretionStateView.swift; sourceTree = "<group>"; };
+		1A5F4C6928EE1AA300AB1F4A /* AccretionModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccretionModel.swift; sourceTree = "<group>"; };
 		1ADE52CF28EBC39400D8432E /* StarMassSelectorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StarMassSelectorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -110,6 +112,7 @@
 				1A47B1C828E3CD3E00645DDF /* SolarSystemGeneratorApp.swift */,
 				1A47B1CA28E3CD3E00645DDF /* ContentView.swift */,
 				1A17227E28ED072A00E59BB2 /* AccretionView.swift */,
+				1A5F4C6928EE1AA300AB1F4A /* AccretionModel.swift */,
 				1A5F4C6728EDFEC200AB1F4A /* AccretionStateView.swift */,
 				1ADE52CF28EBC39400D8432E /* StarMassSelectorView.swift */,
 				1A47B1CC28E3CD3F00645DDF /* Assets.xcassets */,
@@ -295,6 +298,7 @@
 				1A17227F28ED072A00E59BB2 /* AccretionView.swift in Sources */,
 				1A47B1C928E3CD3E00645DDF /* SolarSystemGeneratorApp.swift in Sources */,
 				1ADE52D028EBC39400D8432E /* StarMassSelectorView.swift in Sources */,
+				1A5F4C6A28EE1AA300AB1F4A /* AccretionModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
