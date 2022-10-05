@@ -23,16 +23,15 @@ struct AccretionStateView: View {
     }
     func dustColor(_ d:Dust) -> Color {
         if d.dust_present && d.gas_present {
-            return .brown
+            return .brown.opacity(0.5)
         } else if d.dust_present {
-            return .red
+            return .red.opacity(0.5)
         } else if d.gas_present {
-            return .yellow
+            return .yellow.opacity(0.5)
         } else {
             return .clear
         }
     }
-
     
     let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0...3))
 
@@ -66,7 +65,7 @@ struct AccretionStateView: View {
                         p.move(to: CGPoint(x: scale.scale(d.inner_edge, from: leftInsetMargin, to: right) ?? 0, y: y))
                         p.addLine(to: CGPoint(x: scale.scale(d.outer_edge, from: leftInsetMargin, to: right) ?? 10, y: y))
                     }
-                    ctx.stroke(dPath, with: GraphicsContext.Shading.color(dustColor(d)), lineWidth: 4.0)
+                    ctx.stroke(dPath, with: GraphicsContext.Shading.color(dustColor(d)), lineWidth: size.height/9.0)
                 }
                 for plnt in accretionState.planets {
                     let planetCircle = Path { p in
