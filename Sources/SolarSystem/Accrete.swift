@@ -25,8 +25,13 @@ import Combine
 // lists could be replaced with Array structures and updates, especially capturing the the dust lanes and
 // collecting dust from them. The planet structure that accumulates ends up being a graph rather than a list
 // when you include `moons`, so that may well best sit as a linked-list structure.
+public struct AccretionState {
+    public let dustlanes: [Dust]
+    public let planets: [Planet]
+    public let dust_left: Bool
+}
 
-struct AccretionDisk {
+public struct AccretionDisk {
     
     let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1...4))
     
@@ -34,27 +39,49 @@ struct AccretionDisk {
     var r_inner: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
     var r_outer: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
     var reduced_mass: Double = 0 //? unsure about initial value here - set within code?, but not at initial call sites
-    var dust_density: Double = 0 // initial value set within `dist_planetary_masses` and used while accumulating dust
-    // ^^ could probably be a constant, as I don't think it's changed after it's set, if we collapse initial settings
-    // and 'dist_planetary_masses' into some sort of initializer
     var cloud_eccentricity: Double = 0.2
-    
+    var dust_density: Double = 0
+    var planet_inner_bound: Double
+    var planet_outer_bound: Double
+
+    public var stellar_mass_ratio: Double
+    var stellar_luminosity_ratio: Double
+    var dust_density_coeff: Double
     // NOTE(heckj): create a proper initializer to set this value, aligned somewhere between the initializer and calling
     // dist_planetary_masses, which is the primarily call site into this...
     var prng: RNGWrapper<Xoshiro>
     var dust_head: Dust?
     var planet_head: Planet?
+    var do_moons: Bool
     
-    let updater: PassthroughSubject<([Dust], [Planet]), Never>
+    var current_seed: Planet?
+    public let updater: PassthroughSubject<AccretionState, Never>
 
-    init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double) {
+    public init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double,
+         stellar_mass_ratio: Double, stellar_luminosity_ratio: Double,
+         outer_planet_limit: Double? = nil,
+         do_moons: Bool = true,
+         dust_density_multipler: Double = 1,
+         seed_system: Planet? = nil) {
         self.prng = prng
         let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
         dust_head = dust
         planet_head = nil
         cloud_eccentricity = 0.2
         dust_left = true
-        updater = PassthroughSubject<([Dust], [Planet]), Never>()
+        updater = PassthroughSubject<AccretionState, Never>()
+        self.stellar_mass_ratio = stellar_mass_ratio
+        self.stellar_luminosity_ratio = stellar_luminosity_ratio
+        current_seed = seed_system
+    
+        planet_inner_bound = Self.nearest_planet(stell_mass_ratio: stellar_mass_ratio)
+        if let outer_planet_limit = outer_planet_limit, outer_planet_limit != 0.0 {
+            planet_outer_bound = outer_planet_limit
+        } else {
+            planet_outer_bound = Self.farthest_planet(stell_mass_ratio: stellar_mass_ratio)
+        }
+        dust_density_coeff = DUST_DENSITY_COEFF * dust_density_multipler
+        self.do_moons = do_moons
     }
     
     // In the earlier versions of accrete, these were implemented as a linked-list of pointers
@@ -1042,26 +1069,82 @@ struct AccretionDisk {
     //    }
     //}
     
-    // primary entry point? - called from SolarSystem
-    mutating func dist_planetary_masses(stell_mass_ratio: Double, stell_luminosity_ratio: Double,
-                                        //inner_dust: Double, outer_dust:Double,
-                                        outer_planet_limit: Double, dust_density_coeff: Double, seed_system: Planet?, do_moons: Bool) -> Planet? {
+    public func currentState() -> AccretionState {
+        var current_dust_lanes: [Dust] = []
+        var current_planets: [Planet] = []
+
+        if let firstDustLane = dust_head {
+            for dust_lane in sequence(first: firstDustLane, next: \.next_band) {
+                current_dust_lanes.append(dust_lane)
+            }
+        }
+
+        if let firstPlanet = planet_head {
+            for some_planet in sequence(first: firstPlanet, next: \.next_planet) {
+                current_planets.append(some_planet)
+            }
+        }
+        return AccretionState(dustlanes: current_dust_lanes, planets: current_planets, dust_left: dust_left)
+    }
+    
+    mutating func advance() {
         var a: Double // distance, in AU
         var e: Double // eccentricity of orbit
         var mass: Double = PROTOPLANET_MASS // units of Solar Mass
         var dust_mass: Double = 0
         var gas_mass: Double = 0
         var crit_mass: Double = 0
-        var planet_inner_bound: Double = 0
-        var planet_outer_bound: Double = 0
-        var seeds: Planet? = seed_system
         
-        planet_inner_bound = Self.nearest_planet(stell_mass_ratio: stell_mass_ratio)
-        if planet_outer_bound == 0 {
-            planet_outer_bound = Self.farthest_planet(stell_mass_ratio: stell_mass_ratio)
-        } else {
-            planet_outer_bound = outer_planet_limit
+        // The general flow is to seed planetesimals that start gravitational accretion
+        // (called 'gravitational instability' in current (~2020) astrophysics research)
+        // and continue to deploy "seeds" until the dust of the disk is "consumed".
+        if(dust_left) {
+            if let definitely_seed = current_seed {
+                a = definitely_seed.a
+                e = definitely_seed.e
+                current_seed = definitely_seed.next_planet
+            } else {
+                a = prng.random_number(in: planet_inner_bound...planet_outer_bound)
+                e = prng.random_eccentricity()
+            }
+            print("Checking \(a.formatted(FPStyle)) AU")
+
+            if dust_available(inside_range: inner_effect_limit(a: a, e: e, mass: mass),
+                              outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
+                print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
+                
+                dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, (1.0 / N)))
+                // Determine the mass (in solar masses) at which a body will start accumulating gasses
+                crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
+                
+                accrete_dust(seed_mass: &mass, new_dust: &dust_mass, new_gas: &gas_mass, a: a, e: e, crit_mass: crit_mass, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound)
+                dust_mass += PROTOPLANET_MASS
+                
+                if mass > PROTOPLANET_MASS {
+                    coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stellar_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
+                } else {
+                    print("failed..")
+                }
+            } // dust available for relevant distance (a) and eccentricity (e)
+            updater.send(currentState())
+//            for dust in final_state.dustlanes {
+//                let dust_symbols = "\(dust.dust_present ? "+" : " ")\(dust.gas_present ? "." : " ")"
+//                print("  \(dust_symbols) \(dust.inner_edge.formatted(FPStyle)) - \(dust.outer_edge.formatted(FPStyle))")
+//            }
+//            for planet in final_state.planets {
+//                print(" \(planet.a.formatted(FPStyle)) AU : \(planet.id) \( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
+//            }
         }
+    }
+    
+    // primary entry point? - called from SolarSystem
+    mutating func dist_planetary_masses() -> Planet? {
+        var a: Double // distance, in AU
+        var e: Double // eccentricity of orbit
+        var mass: Double = PROTOPLANET_MASS // units of Solar Mass
+        var dust_mass: Double = 0
+        var gas_mass: Double = 0
+        var crit_mass: Double = 0
         
         // The general flow is to seed planetesimals that start gravitational accretion
         // (called 'gravitational instability' in current (~2020) astrophysics research)
@@ -1069,30 +1152,12 @@ struct AccretionDisk {
         while(dust_left) {
             
             print("DUST STATUS")
-            do {
-                var current_dust_lanes: [Dust] = []
-                var current_planets: [Planet] = []
-
-                if let firstDustLane = dust_head {
-                    for dust_lane in sequence(first: firstDustLane, next: \.next_band) {
-                        current_dust_lanes.append(dust_lane)
-                        let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
-                        print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
-                    }
-                }
-
-                if let firstPlanet = planet_head {
-                    for some_planet in sequence(first: firstPlanet, next: \.next_planet) {
-                        current_planets.append(some_planet)
-                    }
-                }
-                updater.send((current_dust_lanes, current_planets))
-            }
+            updater.send(currentState())
             
-            if let definitely_seed = seeds {
+            if let definitely_seed = current_seed {
                 a = definitely_seed.a
                 e = definitely_seed.e
-                seeds = definitely_seed.next_planet
+                current_seed = definitely_seed.next_planet
             } else {
                 a = prng.random_number(in: planet_inner_bound...planet_outer_bound)
                 e = prng.random_eccentricity()
@@ -1107,16 +1172,16 @@ struct AccretionDisk {
                 // NOTE(heckj): this is used in collect_dust, which is called from inside accrete_dust - and doesn't
                 // appear to be changing, so this calculation likely doesn't need to be within the loop
                 // and could be part of setting up initial conditions.
-                dust_density = dust_density_coeff * sqrt(stell_mass_ratio) * exp(-ALPHA * pow(a,(1.0 / N)))
+                dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, (1.0 / N)))
                 
                 // Determine the mass (in solar masses) at which a body will start accumulating gasses
-                crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stell_luminosity_ratio)
+                crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
                 
                 accrete_dust(seed_mass: &mass, new_dust: &dust_mass, new_gas: &gas_mass, a: a, e: e, crit_mass: crit_mass, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound)
                 dust_mass += PROTOPLANET_MASS
                 
                 if mass > PROTOPLANET_MASS {
-                    coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stell_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
+                    coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stellar_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
                 } else {
                     print("failed..")
                 }
@@ -1124,28 +1189,15 @@ struct AccretionDisk {
             }
         }
         
+        let final_state = currentState()
         print("DUST CONSUMED")
-        do {
-            var current_dust_lanes: [Dust] = []
-            var current_planets: [Planet] = []
-
-            if let firstDustLane = dust_head {
-                for dust_lane in sequence(first: firstDustLane, next: \.next_band) {
-                    current_dust_lanes.append(dust_lane)
-                    let dust_symbols = "\(dust_lane.dust_present ? "+" : " ")\(dust_lane.gas_present ? "." : " ")"
-                    print("  \(dust_symbols) \(dust_lane.inner_edge.formatted(FPStyle)) - \(dust_lane.outer_edge.formatted(FPStyle))")
-                }
-            }
-
-            if let firstPlanet = planet_head {
-                for some_planet in sequence(first: firstPlanet, next: \.next_planet) {
-                    current_planets.append(some_planet)
-                    print(" \(some_planet.a.formatted(FPStyle)) AU : \(some_planet.id) \( (some_planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
-                }
-            }
-            updater.send((current_dust_lanes, current_planets))
+        for dust in final_state.dustlanes {
+            let dust_symbols = "\(dust.dust_present ? "+" : " ")\(dust.gas_present ? "." : " ")"
+            print("  \(dust_symbols) \(dust.inner_edge.formatted(FPStyle)) - \(dust.outer_edge.formatted(FPStyle))")
         }
-
+        for planet in final_state.planets {
+            print(" \(planet.a.formatted(FPStyle)) AU : \(planet.id) \( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
+        }
         return(planet_head)
     }
     

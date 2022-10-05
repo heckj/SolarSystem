@@ -212,10 +212,10 @@ public final class Planet: Equatable {
 // #define ZEROES 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,NULL,0,NULL,tUnknown
 
 public final class Dust {
-    var inner_edge: Double
-    var outer_edge: Double
-    var dust_present: Bool
-    var gas_present: Bool
+    public var inner_edge: Double
+    public var outer_edge: Double
+    public var dust_present: Bool
+    public var gas_present: Bool
     var next_band: Dust?
 
     init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band: Dust?) {

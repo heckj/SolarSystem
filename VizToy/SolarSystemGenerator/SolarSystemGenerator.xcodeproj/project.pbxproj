@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A17227F28ED072A00E59BB2 /* AccretionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A17227E28ED072A00E59BB2 /* AccretionView.swift */; };
 		1A47B1C928E3CD3E00645DDF /* SolarSystemGeneratorApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A47B1C828E3CD3E00645DDF /* SolarSystemGeneratorApp.swift */; };
 		1A47B1CB28E3CD3E00645DDF /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A47B1CA28E3CD3E00645DDF /* ContentView.swift */; };
 		1A47B1CD28E3CD3F00645DDF /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1A47B1CC28E3CD3F00645DDF /* Assets.xcassets */; };
@@ -37,6 +38,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1A17227E28ED072A00E59BB2 /* AccretionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccretionView.swift; sourceTree = "<group>"; };
 		1A47B1C528E3CD3E00645DDF /* SolarSystemGenerator.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SolarSystemGenerator.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1A47B1C828E3CD3E00645DDF /* SolarSystemGeneratorApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SolarSystemGeneratorApp.swift; sourceTree = "<group>"; };
 		1A47B1CA28E3CD3E00645DDF /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -105,6 +107,7 @@
 			children = (
 				1A47B1C828E3CD3E00645DDF /* SolarSystemGeneratorApp.swift */,
 				1A47B1CA28E3CD3E00645DDF /* ContentView.swift */,
+				1A17227E28ED072A00E59BB2 /* AccretionView.swift */,
 				1ADE52CF28EBC39400D8432E /* StarMassSelectorView.swift */,
 				1A47B1CC28E3CD3F00645DDF /* Assets.xcassets */,
 				1A47B1CE28E3CD3F00645DDF /* SolarSystemGenerator.entitlements */,
@@ -285,6 +288,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				1A47B1CB28E3CD3E00645DDF /* ContentView.swift in Sources */,
+				1A17227F28ED072A00E59BB2 /* AccretionView.swift in Sources */,
 				1A47B1C928E3CD3E00645DDF /* SolarSystemGeneratorApp.swift in Sources */,
 				1ADE52D028EBC39400D8432E /* StarMassSelectorView.swift in Sources */,
 			);

@@ -221,7 +221,7 @@ func generate_stellar_system(sun: inout Sun,
 {
     
     let outer_dust_limit = AccretionDisk.stellar_dust_limit(stell_mass_ratio: sun.mass)
-    var accretionDisk = AccretionDisk(prng: prng, inner_limit_of_dust: 0.0, outer_limit_of_dust: outer_dust_limit)
+    var accretionDisk = AccretionDisk(prng: prng, inner_limit_of_dust: 0.0, outer_limit_of_dust: outer_dust_limit, stellar_mass_ratio: sun.mass, stellar_luminosity_ratio: sun.luminosity, outer_planet_limit: outer_planet_limit, do_moons: do_moons, dust_density_multipler: 1, seed_system: seed_system)
     var innermost_planet: Planet?
 
     // NOTE(heckj): This only invokes the generation sequence IF `use_seed_system` is false,
@@ -239,16 +239,7 @@ func generate_stellar_system(sun: inout Sun,
             sun.life = max_age
         }
 
-        innermost_planet = accretionDisk.dist_planetary_masses(
-            stell_mass_ratio: sun.mass,
-            stell_luminosity_ratio: sun.luminosity,
-//            inner_dust: 0.0,
-//            outer_dust: outer_dust_limit,
-            outer_planet_limit: outer_planet_limit,
-            dust_density_coeff: dust_density_coeff,
-            seed_system: seed_system,
-            do_moons: do_moons
-        )
+        innermost_planet = accretionDisk.dist_planetary_masses()
 
         sun.age = prng.random_number(in: min_age ... max_age)
     }

@@ -19,6 +19,9 @@ struct StarMassSelectorView: View {
         VStack {
             Text("\(mass) Solar Masses")
             Text("luminosity: \(luminosity(mass_ratio: mass))")
+            Text("r_ecosphere: \(sqrt(luminosity(mass_ratio: mass)))")
+            Text("lifetime: \(1.0e10 * (mass / luminosity(mass_ratio: mass)))")
+
             Slider(value: $mass, in: min_mass...max_mass) {
                 Text("Mass")
             } minimumValueLabel: {
