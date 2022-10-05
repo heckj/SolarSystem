@@ -29,6 +29,23 @@ public struct AccretionState {
     public let dustlanes: [Dust]
     public let planets: [Planet]
     public let dust_left: Bool
+    
+    public static let example = AccretionState(dustlanes: [
+        Dust(inner_edge: 0, outer_edge: 0.02963, dust_present: true, gas_present: true, next_band: nil),
+        Dust(inner_edge: 0.02963, outer_edge: 0.3544, dust_present: false, gas_present: true, next_band: nil),
+        Dust(inner_edge: 0.3544, outer_edge: 0.9784, dust_present: false, gas_present: false, next_band: nil),
+        Dust(inner_edge: 0.9784, outer_edge: 29.59, dust_present: false, gas_present: false, next_band: nil),
+        Dust(inner_edge: 29.59, outer_edge: 78.19, dust_present: false, gas_present: false, next_band: nil),
+        Dust(inner_edge: 78.19, outer_edge: 212.5, dust_present: true, gas_present: true, next_band: nil)
+    ], planets: [
+        Planet(planet_no: 1, a: 0.3188, e: 0, axial_tilt: 0, mass: 0.9438, gas_giant: false, dust_mass: 0.9438, gas_mass: 0, next_planet: nil),
+        Planet(planet_no: 2, a: 0.735, e: 0, axial_tilt: 0, mass: 1956, gas_giant: true, dust_mass: 1956, gas_mass: 0, next_planet: nil),
+        Planet(planet_no: 3, a: 1.663, e: 0, axial_tilt: 0, mass: 1288, gas_giant: true, dust_mass: 1288, gas_mass: 0, next_planet: nil),
+        Planet(planet_no: 4, a: 3.11, e: 0, axial_tilt: 0, mass: 882.2, gas_giant: true, dust_mass: 882.2, gas_mass: 0, next_planet: nil),
+        Planet(planet_no: 5, a: 7.425, e: 0, axial_tilt: 0, mass: 504.2, gas_giant: true, dust_mass: 504.2, gas_mass: 0, next_planet: nil),
+        Planet(planet_no: 6, a: 16.08, e: 0, axial_tilt: 0, mass: 1917, gas_giant: true, dust_mass: 1017, gas_mass: 0, next_planet: nil),
+        Planet(planet_no: 7, a: 48.98, e: 0, axial_tilt: 0, mass: 1870, gas_giant: true, dust_mass: 1870, gas_mass: 0, next_planet: nil)
+    ], dust_left: false)
 }
 
 public struct AccretionDisk {

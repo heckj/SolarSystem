@@ -15,12 +15,14 @@ struct StarMassSelectorView: View {
 
     @State private var mass: Double = 0.4
     
+    let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0...3))
+    
     var body: some View {
         VStack {
-            Text("\(mass) Solar Masses")
-            Text("luminosity: \(luminosity(mass_ratio: mass))")
-            Text("r_ecosphere: \(sqrt(luminosity(mass_ratio: mass)))")
-            Text("lifetime: \(1.0e10 * (mass / luminosity(mass_ratio: mass)))")
+            Text("\(mass.formatted(FPStyle)) \u{2609} Solar Masses")
+            Text("luminosity: \(luminosity(mass_ratio: mass).formatted(FPStyle))")
+            Text("r_ecosphere: \(sqrt(luminosity(mass_ratio: mass)).formatted(FPStyle))")
+            Text("lifetime: \((1.0e10 * (mass / luminosity(mass_ratio: mass))).formatted(.number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0...3))))")
 
             Slider(value: $mass, in: min_mass...max_mass) {
                 Text("Mass")
