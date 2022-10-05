@@ -92,7 +92,7 @@ struct AccretionStateView: View {
                 partialResult = dustlane.outer_edge
             }
         }
-        let maxPlanetMass: Double = accretionState.planets.reduce(into: 0.0) { partialResult, planet in
+        let maxPlanetMass: Double = accretionState.planets.reduce(into: 0.2) { partialResult, planet in
             if planet.mass > partialResult {
                 partialResult = planet.mass
             }
@@ -105,5 +105,7 @@ struct AccretionStateView: View {
 struct AccretionStateView_Previews: PreviewProvider {
     static var previews: some View {
         AccretionStateView(accretionState: AccretionState.example)
+        
+        AccretionStateView(accretionState: AccretionDisk(prng: RNGWrapper(Xoshiro(seed: 23)), inner_limit_of_dust: 0.0, outer_limit_of_dust: 0.0, stellar_mass_ratio: 1.1, stellar_luminosity_ratio: luminosity(mass_ratio: 1.1)).currentState())
     }
 }

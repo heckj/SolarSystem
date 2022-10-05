@@ -81,8 +81,11 @@ public struct AccretionDisk {
          dust_density_multipler: Double = 1,
          seed_system: Planet? = nil) {
         self.prng = prng
-        let dust = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
-        dust_head = dust
+        if outer_limit_of_dust != 0 {
+            dust_head = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
+        } else {
+            dust_head = Dust(inner_edge: inner_limit_of_dust, outer_edge: AccretionDisk.stellar_dust_limit(stell_mass_ratio: stellar_mass_ratio), dust_present: true, gas_present: true, next_band: nil)
+        }
         planet_head = nil
         cloud_eccentricity = 0.2
         dust_left = true

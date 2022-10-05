@@ -29,11 +29,18 @@ struct AccretionView: View {
     @State var accreteState: AccretionState? = nil
     var body: some View {
         VStack {
+            Button {
+                print("hi")
+            } label: {
+                Image(systemName: "play")
+            }
+
             Text("\(accretionDisk.stellar_mass_ratio) \u{2609} Solar Masses")
             if let accreteState = accreteState {
                 ForEach(accreteState.dustlanes, id: \.inner_edge) { dustlane in
                     Text("\(dustlane.inner_edge.formatted(tight)) - \(dustlane.outer_edge.formatted(tight)) \(dustSymbol(dustlane))")
                 }
+                AccretionStateView(accretionState: accreteState)
             }
         }
         .onAppear() {
