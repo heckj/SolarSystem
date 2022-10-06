@@ -53,8 +53,8 @@ public struct AccretionDisk {
     let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1...4))
     
     var dust_left: Bool = true
-    var r_inner: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
-    var r_outer: Double = 0 //? unsure about initial value here - set within code, but not at initial call sites
+    var r_inner: Double = 0 // the inner radius of the computed band/width that a mass accumulates
+    var r_outer: Double = 0 // the outer radius of the computed band/width that a mass accumulates
     var reduced_mass: Double = 0 //? unsure about initial value here - set within code?, but not at initial call sites
     var cloud_eccentricity: Double = 0.2
     var dust_density: Double = 0
@@ -456,21 +456,21 @@ public struct AccretionDisk {
         var    temp_density: Double
         var    bandwidth: Double
         var    width: Double
-        var    volume: Double
+        let    volume: Double
         var    gas_density: Double = 0.0
         var    new_mass: Double
         var    next_mass: Double
         var    next_dust: Double = 0
         var    next_gas: Double = 0
         
-        var temp = last_mass / (1.0 + last_mass)
-        let reduced_mass = pow(temp,(1.0 / 4.0))
-        
-        r_inner = inner_effect_limit(a: a, e: e, mass: reduced_mass);
-        r_outer = outer_effect_limit(a: a, e: e, mass: reduced_mass);
+        // calculate the effect limits of dust collection based on a reduced mass
+        let reduced_mass = pow(last_mass / (1.0 + last_mass),(1.0 / 4.0))
+        r_inner = inner_effect_limit(a: a, e: e, mass: reduced_mass)
+        r_outer = outer_effect_limit(a: a, e: e, mass: reduced_mass)
         if r_inner < 0.0 {
             r_inner = 0.0
         }
+        
         guard let dust_band = dust_band else {
             return 0.0
         }
@@ -489,7 +489,7 @@ public struct AccretionDisk {
         }
         
         if dust_band.outer_edge <= r_inner || dust_band.inner_edge >= r_outer {
-            // nothing in this band, walk down and process the next...
+            // the effect band doesn't overlap with this dust lane, iterate through further dust lanes
             return collect_dust(last_mass: last_mass, new_dust: &new_dust, new_gas: &new_gas, a: a, e: e, crit_mass: crit_mass, dust_band: dust_band.next_band)
         } else {
             bandwidth = (r_outer - r_inner)
@@ -506,8 +506,7 @@ public struct AccretionDisk {
             }
             width = width - temp2
             
-            temp = 4.0 * Double.pi * pow(a,2.0) * reduced_mass * (1.0 - e * (temp1 - temp2) / bandwidth)
-            volume = temp * width
+            volume = 4.0 * Double.pi * pow(a,2.0) * reduced_mass * (1.0 - e * (temp1 - temp2) / bandwidth) * width
             
             new_mass  = volume * mass_density
             new_gas  = volume * gas_density
