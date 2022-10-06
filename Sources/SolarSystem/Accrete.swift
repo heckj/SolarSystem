@@ -73,6 +73,7 @@ public struct AccretionDisk {
     
     var current_seed: Planet?
     public let updater: PassthroughSubject<AccretionState, Never>
+    public let msgs: PassthroughSubject<String, Never>
 
     public init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double,
          stellar_mass_ratio: Double, stellar_luminosity_ratio: Double,
@@ -89,7 +90,10 @@ public struct AccretionDisk {
         planet_head = nil
         cloud_eccentricity = 0.2
         dust_left = true
+        
         updater = PassthroughSubject<AccretionState, Never>()
+        msgs = PassthroughSubject<String, Never>()
+        
         self.stellar_mass_ratio = stellar_mass_ratio
         self.stellar_luminosity_ratio = stellar_luminosity_ratio
         current_seed = seed_system
@@ -1127,11 +1131,14 @@ public struct AccretionDisk {
                 a = prng.random_number(in: planet_inner_bound...planet_outer_bound)
                 e = prng.random_eccentricity()
             }
-            print("Checking \(a.formatted(FPStyle)) AU")
+            //print("Checking \(a.formatted(FPStyle)) AU")
+            msgs.send("Checking \(a.formatted(FPStyle)) AU")
 
             if dust_available(inside_range: inner_effect_limit(a: a, e: e, mass: mass),
                               outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
-                print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
+                // print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
+                msgs.send("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
+                // n = 3, alpha = 5
                 
                 dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, (1.0 / N)))
                 // Determine the mass (in solar masses) at which a body will start accumulating gasses
@@ -1143,9 +1150,12 @@ public struct AccretionDisk {
                 if mass > PROTOPLANET_MASS {
                     coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stellar_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
                 } else {
-                    print("failed..")
+                    msgs.send("Insufficient mass additional from accretion.")
                 }
             } // dust available for relevant distance (a) and eccentricity (e)
+            else {
+                msgs.send("No dust available at \(a.formatted(FPStyle)) AU")
+            }
             updater.send(currentState())
 //            for dust in final_state.dustlanes {
 //                let dust_symbols = "\(dust.dust_present ? "+" : " ")\(dust.gas_present ? "." : " ")"
