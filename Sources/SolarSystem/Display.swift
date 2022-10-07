@@ -4,7 +4,7 @@
 
 import Foundation
 
-func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, seed: UInt64) {
+func text_describe_system(sun: Sun, planets: [Planet], do_gases: Bool, seed: UInt64) {
     var planet: Planet?
     var counter = 1
 
@@ -16,9 +16,7 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
     print("Habitable ecosphere radius: \(sun.r_ecosphere.formatted(FPStyle)) AU")
     print()
     print("Planets present at:")
-    planet = innermost_planet
-    while planet != nil {
-        guard let Aplanet = planet else { break }
+    for Aplanet in planets {
         let textSymbol: String
         if Aplanet.gas_giant {
             textSymbol = "O"
@@ -37,9 +35,8 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
     }
 
     print()
-    planet = innermost_planet
-    while planet != nil {
-        guard let Aplanet = planet else { break }
+
+    for Aplanet in planets {
         print("Planet \(Aplanet.id) \(Aplanet.gas_giant ? "*gas giant*" : "")")
 
         if Int(Aplanet.day) == Int(Aplanet.orb_period * 24.0) {
@@ -83,7 +80,6 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
         {
             // gases?
         }
-        planet = planet?.next_planet
     }
 }
 
