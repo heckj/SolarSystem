@@ -2,8 +2,8 @@
 //  Accrete.swift
 //
 
-import Foundation
 import Combine
+import Foundation
 
 /*------------------------------------------------------------------------*/
 /*                             BIBLIOGRAPHY                               */
@@ -29,14 +29,14 @@ public struct AccretionState {
     public let dustlanes: [Dust]
     public let planets: [Planet]
     public let dust_left: Bool
-    
+
     public static let example = AccretionState(dustlanes: [
         Dust(inner_edge: 0, outer_edge: 0.02963, dust_present: true, gas_present: true, next_band: nil),
         Dust(inner_edge: 0.02963, outer_edge: 0.3544, dust_present: false, gas_present: true, next_band: nil),
         Dust(inner_edge: 0.3544, outer_edge: 0.9784, dust_present: false, gas_present: false, next_band: nil),
         Dust(inner_edge: 0.9784, outer_edge: 29.59, dust_present: false, gas_present: false, next_band: nil),
         Dust(inner_edge: 29.59, outer_edge: 78.19, dust_present: false, gas_present: false, next_band: nil),
-        Dust(inner_edge: 78.19, outer_edge: 212.5, dust_present: true, gas_present: true, next_band: nil)
+        Dust(inner_edge: 78.19, outer_edge: 212.5, dust_present: true, gas_present: true, next_band: nil),
     ], planets: [
         Planet(planet_no: 1, a: 0.3188, e: 0, axial_tilt: 0, mass: 0.9438, gas_giant: false, dust_mass: 0.9438, gas_mass: 0, next_planet: nil),
         Planet(planet_no: 2, a: 0.735, e: 0, axial_tilt: 0, mass: 1956, gas_giant: true, dust_mass: 1956, gas_mass: 0, next_planet: nil),
@@ -44,1054 +44,559 @@ public struct AccretionState {
         Planet(planet_no: 4, a: 3.11, e: 0, axial_tilt: 0, mass: 882.2, gas_giant: true, dust_mass: 882.2, gas_mass: 0, next_planet: nil),
         Planet(planet_no: 5, a: 7.425, e: 0, axial_tilt: 0, mass: 504.2, gas_giant: true, dust_mass: 504.2, gas_mass: 0, next_planet: nil),
         Planet(planet_no: 6, a: 16.08, e: 0, axial_tilt: 0, mass: 1917, gas_giant: true, dust_mass: 1017, gas_mass: 0, next_planet: nil),
-        Planet(planet_no: 7, a: 48.98, e: 0, axial_tilt: 0, mass: 1870, gas_giant: true, dust_mass: 1870, gas_mass: 0, next_planet: nil)
+        Planet(planet_no: 7, a: 48.98, e: 0, axial_tilt: 0, mass: 1870, gas_giant: true, dust_mass: 1870, gas_mass: 0, next_planet: nil),
     ], dust_left: false)
 }
 
 public struct AccretionDisk {
-    
-    let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1...4))
-    
-    var dust_left: Bool = true
-    var r_inner: Double = 0 // the inner radius of the computed band/width that a mass accumulates
-    var r_outer: Double = 0 // the outer radius of the computed band/width that a mass accumulates
-    var reduced_mass: Double = 0 //? unsure about initial value here - set within code?, but not at initial call sites
-    var cloud_eccentricity: Double = 0.2
-    var dust_density: Double = 0
+    let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 4))
+    let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
+
+    var dust_left: Bool
+    var cloud_eccentricity: Double
     var planet_inner_bound: Double
     var planet_outer_bound: Double
 
-    public var stellar_mass_ratio: Double
-    var stellar_luminosity_ratio: Double
+    var r_inner: Double = 0 // the inner radius of the computed band/width that a mass accumulates
+    var r_outer: Double = 0 // the outer radius of the computed band/width that a mass accumulates
+    var reduced_mass: Double = 0 // a reduced mass computed during accretion to collect dust and gas
+    var dust_density: Double = 0
+
+    public var stellar_mass_ratio: Double // the mass of the star, in solar masses
+    public var stellar_luminosity_ratio: Double // the luminosity of the star, comparable to sol
+
     var dust_density_coeff: Double
     // NOTE(heckj): create a proper initializer to set this value, aligned somewhere between the initializer and calling
     // dist_planetary_masses, which is the primarily call site into this...
     var prng: RNGWrapper<Xoshiro>
+
+    var dust_lanes: [Dust]
+    var planets: [Planet]
+
     var dust_head: Dust?
     var planet_head: Planet?
     var do_moons: Bool
-    
+
     var current_seed: Planet?
     public let updater: PassthroughSubject<AccretionState, Never>
     public let msgs: PassthroughSubject<String, Never>
 
-    public init(prng: RNGWrapper<Xoshiro>, inner_limit_of_dust: Double, outer_limit_of_dust: Double,
-         stellar_mass_ratio: Double, stellar_luminosity_ratio: Double,
-         outer_planet_limit: Double? = nil,
-         do_moons: Bool = true,
-         dust_density_multipler: Double = 1,
-         seed_system: Planet? = nil) {
+    public init(prng: RNGWrapper<Xoshiro>,
+                inner_limit_of_dust: Double,
+                outer_limit_of_dust: Double,
+                stellar_mass_ratio: Double,
+                stellar_luminosity_ratio: Double,
+                outer_planet_limit: Double? = nil,
+                do_moons: Bool = true,
+                dust_density_multipler: Double = 1,
+                cloud_eccentricity: Double = 0.2,
+                seed_system: Planet? = nil)
+    {
         self.prng = prng
-        if outer_limit_of_dust != 0 {
-            dust_head = Dust(inner_edge: inner_limit_of_dust, outer_edge: outer_limit_of_dust, dust_present: true, gas_present: true, next_band: nil)
-        } else {
-            dust_head = Dust(inner_edge: inner_limit_of_dust, outer_edge: AccretionDisk.stellar_dust_limit(stell_mass_ratio: stellar_mass_ratio), dust_present: true, gas_present: true, next_band: nil)
-        }
-        planet_head = nil
-        cloud_eccentricity = 0.2
-        dust_left = true
-        
-        updater = PassthroughSubject<AccretionState, Never>()
-        msgs = PassthroughSubject<String, Never>()
-        
+        self.do_moons = do_moons
         self.stellar_mass_ratio = stellar_mass_ratio
         self.stellar_luminosity_ratio = stellar_luminosity_ratio
         current_seed = seed_system
-    
-        planet_inner_bound = Self.nearest_planet(stell_mass_ratio: stellar_mass_ratio)
+
+        // initial dust
+        dust_density_coeff = DUST_DENSITY_COEFF * dust_density_multipler
+        self.cloud_eccentricity = cloud_eccentricity
+        dust_left = true
+        if outer_limit_of_dust != 0 {
+            let initialDustLane = Dust(
+                inner_edge: inner_limit_of_dust,
+                outer_edge: outer_limit_of_dust,
+                dust_present: true, gas_present: true, next_band: nil
+            )
+            dust_head = initialDustLane
+            dust_lanes = [initialDustLane]
+        } else {
+            let initialDustLane = Dust(
+                inner_edge: inner_limit_of_dust,
+                outer_edge: AccretionDisk.stellar_dust_limit(stellar_mass: stellar_mass_ratio),
+                dust_present: true, gas_present: true, next_band: nil
+            )
+            dust_head = initialDustLane
+            dust_lanes = [initialDustLane]
+        }
+        // initial planets
+        planets = []
+        planet_head = nil
+
+        // Combine publishers to send updates about accretion status
+        updater = PassthroughSubject<AccretionState, Never>()
+        msgs = PassthroughSubject<String, Never>()
+
+        // set or compute the range within which planets can be generated
+        planet_inner_bound = AccretionDisk.nearest_planet(stellar_mass: stellar_mass_ratio)
         if let outer_planet_limit = outer_planet_limit, outer_planet_limit != 0.0 {
             planet_outer_bound = outer_planet_limit
         } else {
-            planet_outer_bound = Self.farthest_planet(stell_mass_ratio: stellar_mass_ratio)
+            planet_outer_bound = AccretionDisk.farthest_planet(stellar_mass: stellar_mass_ratio)
         }
-        dust_density_coeff = DUST_DENSITY_COEFF * dust_density_multipler
-        self.do_moons = do_moons
     }
-    
-    // In the earlier versions of accrete, these were implemented as a linked-list of pointers
-    // in C, so I've transferred that structure to reference types (final class), originally
-    // defined in structs.h to the types included within Types.swift.
-//    var generation_head: Generation? = nil
-    
-    ///* Now for some variables global to the accretion process:        */
-    //int             dust_left;
-    //long double        r_inner;
-    //long double        r_outer;
-    //long double        reduced_mass;
-    //long double        dust_density;
-    //long double        cloud_eccentricity;
-    //dust_pointer    dust_head    = NULL;
-    //planet_pointer    planet_head    = NULL;
-    //gen_pointer        hist_head    = NULL;
-    
-    // called from dist_planetary_masses, which seems to be the primary entry point to these functions.
-    //void set_initial_conditions(long double inner_limit_of_dust,
-    //                            long double outer_limit_of_dust)
-    //{
-    //    gen_pointer hist;
-    //    hist = (gen_pointer)malloc(sizeof(generation));
-    //    hist->dusts = dust_head;
-    //    hist->planets = planet_head;
-    //    hist->next = hist_head;
-    //    hist_head = hist;
-    //
-    //    dust_head = (dust *)malloc(sizeof(dust));
-    //    planet_head = NULL;
-    //    dust_head->next_band = NULL;
-    //    dust_head->outer_edge = outer_limit_of_dust;
-    //    dust_head->inner_edge = inner_limit_of_dust;
-    //    dust_head->dust_present = TRUE;
-    //    dust_head->gas_present = TRUE;
-    //    dust_left = TRUE;
-    //    cloud_eccentricity = 0.2;
-    //}
-    
-    static func stellar_dust_limit(stell_mass_ratio: Double) -> Double {
-        200.0 * pow(stell_mass_ratio, (1.0/3.0))
+
+    /// The outer limit, in AU, of a planetary dust cloud for a star.
+    /// - Parameter stellar_mass: The mass of the star, in solar masses
+    /// - Returns: The distance, in AU, of the outermost range of dust for planetary accretion.
+    public static func stellar_dust_limit(stellar_mass: Double) -> Double {
+        200.0 * pow(stellar_mass, 1.0 / 3.0)
     }
-    //    long double stellar_dust_limit(long double stell_mass_ratio)
-    //    {
-    //        return(200.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
-    //    }
-    
-    // Uses the stellar mass ratio to determine the closest "interior" planet
-    // that would likely form. The result is in "AU".
-    static func nearest_planet(stell_mass_ratio: Double) -> Double {
-        0.3 * pow(stell_mass_ratio, (1.0/3.0))
+
+    /// Computes the distance from the start to the closest interior planet that would likely form, in AU.
+    /// - Parameter stellar_mass: The mass of the star, in solar masses
+    /// - Returns: The distance to the nearest possilble planet, in AU.
+    public static func nearest_planet(stellar_mass: Double) -> Double {
+        0.3 * pow(stellar_mass, 1.0 / 3.0)
     }
-    //    long double nearest_planet(long double stell_mass_ratio)
-    //    {
-    //        return(0.3 * pow(stell_mass_ratio,(1.0 / 3.0)));
-    //    }
-    
-    // Uses the stellar mass ratio to determine the farthest planet
-    // that would likely form. The result is in "AU".
-    static func farthest_planet(stell_mass_ratio: Double) -> Double {
-        50.0 * pow(stell_mass_ratio, (1.0/3.0))
+
+    /// The outer limit, in AU, of a where a planet will likely accrete for a star.
+    /// - Parameter stellar_mass: The mass of the star, in solar masses
+    /// - Returns: The distance, in AU, of the outermost range of a planet for the given stellar mass.
+    public static func farthest_planet(stellar_mass: Double) -> Double {
+        50.0 * pow(stellar_mass, 1.0 / 3.0)
     }
-    //    long double farthest_planet(long double stell_mass_ratio)
-    //    {
-    //        return(50.0 * pow(stell_mass_ratio,(1.0 / 3.0)));
-    //    }
-    
-    func inner_effect_limit(a: Double, e: Double, mass: Double) -> Double {
+
+    /// Returns the mass, in solar masses, at which a planet begins to accrete gas as well as dust.
+    /// - Parameters:
+    ///   - orb_radius: The orbital radius, in AU
+    ///   - eccentricity: The eccentricity of the orbit.
+    ///   - stell_luminosity_ratio: The luminosity of the star.
+    public static func critical_limit(orbital_radius: Double, eccentricity: Double, stell_luminosity_ratio: Double) -> Double {
+        let perihelion_dist = (orbital_radius - orbital_radius * eccentricity)
+        let temp = perihelion_dist * sqrt(stell_luminosity_ratio)
+        return B * pow(temp, -0.75)
+    }
+
+    /// Returns the inner most effect range for a given distance (a) in AU, and eccentricity that would accumulate dust and gas.
+    /// - Parameters:
+    ///   - a: The distance of the planetesimal mass from the star, in AU.
+    ///   - e: The eccentricity of the orbit of the planetesimal mass.
+    ///   - mass: The mass of the planetesimal.
+    static func inner_effect_limit(a: Double, e: Double, mass: Double, cloud_eccentricity: Double) -> Double {
         // Given an orbital distance, mass, and eccentricity, calculates the
         // inner-most distance (in AU) that the orbit "sweeps up" dust.
-        a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity)
+        let minAU = a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity)
+        // clamp minimum value to 0 AU
+        return minAU < 0.0 ? 0 : minAU
     }
-    //    long double inner_effect_limit(long double a, long double e, long double mass)
-    //    {
-    //        return (a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity));
-    //    }
-    
-    func outer_effect_limit(a: Double, e: Double, mass: Double) -> Double {
+
+    /// Returns the outer most effect range for a given distance (a) in AU, and eccentricity that would accumulate dust and gas.
+    /// - Parameters:
+    ///   - a: The distance of the planetesimal mass from the star, in AU.
+    ///   - e: The eccentricity of the orbit of the planetesimal mass.
+    ///   - mass: The mass of the planetesimal.
+    static func outer_effect_limit(a: Double, e: Double, mass: Double, cloud_eccentricity: Double) -> Double {
         // Given an orbital distance, mass, and eccentricity, calculates the
         // outer-most distance (in AU) that the orbit "sweeps up" dust.
         a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity)
     }
-    //    long double outer_effect_limit(long double a, long double e, long double mass)
-    //    {
-    //        return (a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity));
-    //    }
-    
-    func dust_available(inside_range: Double, outside_range: Double) -> Bool {
-        // This iterates through the linked-list of all the "bands of dust"
-        // (represented by Dust.next -> Dust.next -> nil) to search for the areas
-        // that match the region defined between inside_range and outside_range.
-        // If any dust band exists, and has dust, within those ranges, this will return
-        // true.
-        
-        // NOTE(heckj): refactoring note - I'll have to see how these dust bands are
-        // created and updated, but it might make a lot more sense to represent them in
-        // an array, maybe using range values to determine what elements of the array
-        // are relevant, and using a functional map or filter to return a boolean.
-        // At a minimum, doing something that allows us to use Sequence and iterator would
-        // make this a much more understandable bit of code.
-        var current_dust_band = dust_head
-        var dust_here: Bool = false
-        
-        while current_dust_band != nil && current_dust_band!.outer_edge < inside_range {
-            current_dust_band = current_dust_band?.next_band
+
+    /// Returns a Boolean value indicating if dust is available to accumulate within the given range.
+    /// - Parameter sweeprange: The range, in AU, to check for available dust.
+    func dust_available(_ sweeprange: ClosedRange<Double>) -> Bool {
+        // called from `accrete_dust`
+        dust_lanes.reduce(into: false) { partialResult, dustlane in
+            if dustlane.range.overlaps(sweeprange) {
+                partialResult = partialResult || dustlane.dust_present
+            }
         }
-        
-        if let definitely_current_dust_band = current_dust_band {
-            dust_here = definitely_current_dust_band.dust_present
-        } else {
-            dust_here = false
-        }
-        
-        while current_dust_band != nil && current_dust_band!.inner_edge < outside_range {
-            dust_here = dust_here || current_dust_band!.dust_present
-            current_dust_band = current_dust_band?.next_band
-        }
-        
-        return dust_here
     }
-    //    int dust_available(long double inside_range, long double outside_range)
-    //    {
-    //        dust_pointer current_dust_band;
-    //        int dust_here;
-    //
-    //        current_dust_band = dust_head;
-    
-    //        while ((current_dust_band != NULL)
-    //            && (current_dust_band->outer_edge < inside_range))
-    //            current_dust_band = current_dust_band->next_band;
-    
-    //        if (current_dust_band == NULL)
-    //            dust_here = FALSE;
-    //        else dust_here = current_dust_band->dust_present;
-    
-    //        while ((current_dust_band != NULL)
-    //            && (current_dust_band->inner_edge < outside_range)) {
-    //                dust_here = dust_here || current_dust_band->dust_present;
-    //                current_dust_band = current_dust_band->next_band;
-    //            }
-    //        return(dust_here);
-    //    }
-    
-    
-    // called from `accrete_dust`
-    mutating func update_dust_lanes(min: Double, max: Double, mass: Double, crit_mass: Double, body_inner_bound: Double, body_outer_bound: Double) {
+
+    func updated_dust_lanes(accretion_effect_range: ClosedRange<Double>, mass: Double, crit_mass: Double) -> [Dust] {
+        // called from `accrete_dust`
+
         // With the collected mass accumulated earlier in sweeping through the dust lanes, we need to deplete the dust
-        // stored within our data structures (the linked list of dust lanes) between the inner_bound and outer_bound
+        // stored within our data structures (the list of dust lanes) between the inner_bound and outer_bound
         // distances in AU.
-        
-        // This does so by updating the linked list, breaking up the dust into separate lanes and they get "swept through"
-        // and accumulated into masses.
-        
-        let gas: Bool = (mass <= crit_mass)
-        var node1: Dust? = nil
-        var node2: Dust? = nil
-        var node3: Dust? = nil
-        dust_left = false
-        node1 = dust_head
-        while (node1 != nil) {
-            if let definitely_node1 = node1 {
-                if definitely_node1.inner_edge < min && definitely_node1.outer_edge > max {
-                    //  node1.inner ------------------------- node1.outer
-                    //                     min ---- max
-                    // make a new dust lane and insert it into the linked list, marking
-                    // that dust lane as consumed, squeezing down the first lane to 'min'
-                    // and creating a new dust lane to cover 'max' to the outer edge
-                    node2 = Dust(inner_edge: min, outer_edge: max, dust_present: false, gas_present: definitely_node1.gas_present ? gas : false, next_band: nil)
-                    node3 = Dust(inner_edge: max, outer_edge: definitely_node1.outer_edge, dust_present: definitely_node1.dust_present, gas_present: definitely_node1.gas_present, next_band: definitely_node1.next_band)
-                    definitely_node1.next_band = node2
-                    node2?.next_band = node3
-                    node1?.outer_edge = min
-                    node1 = node3?.next_band
-                } else if definitely_node1.inner_edge < max && definitely_node1.outer_edge > max {
-                    //        node1.inner ------ node1.outer
-                    //   min -------------- max
-                    
-                    node2 = Dust(inner_edge: max, outer_edge: definitely_node1.outer_edge, dust_present: definitely_node1.dust_present, gas_present: definitely_node1.gas_present, next_band: definitely_node1.next_band)
-                    definitely_node1.next_band = node2
-                    definitely_node1.outer_edge = max
-                    definitely_node1.gas_present = definitely_node1.gas_present ? gas : false
-                    definitely_node1.dust_present = false
-                    node1 = node2?.next_band
-                } else if definitely_node1.inner_edge < min && definitely_node1.outer_edge > min {
-                    //        node1.inner -------- node1.outer
-                    //                       min -------------- max
-                    node2 = Dust(inner_edge: min, outer_edge: definitely_node1.outer_edge, dust_present: false, gas_present: definitely_node1.gas_present ? gas : false, next_band: definitely_node1.next_band)
-                    definitely_node1.next_band = node2
-                    definitely_node1.outer_edge = min
-                    node1 = node2?.next_band
-                } else if definitely_node1.inner_edge >= min && definitely_node1.outer_edge <= max {
-                    //       node1.inner --- node1.outer
-                    //  min ------------------------------ max
-                    definitely_node1.dust_present = false
-                    definitely_node1.gas_present = definitely_node1.gas_present ? gas : false
-                    node1 = node1?.next_band
-                } else if definitely_node1.outer_edge < min || definitely_node1.inner_edge > max {
-                    //       node1.inner --- node1.outer
-                    //                                     min ----- max
-                    // OR
-                    //                       node1.inner --- node1.outer
-                    //       min ----- max
-                    node1 = node1?.next_band
+
+        let min_effect = accretion_effect_range.lowerBound
+        let max_effect = accretion_effect_range.upperBound
+        let gas: Bool = (mass <= crit_mass) // Boolean to indicate we to deplete gas as well as dust
+
+        let depleted_lanes = dust_lanes.flatMap { dust in
+            if dust.inner_edge < min_effect && dust.outer_edge > max_effect {
+                //  dust.inner ------------------------- dust.outer
+                //                     min ---- max
+                //  [  lane1          ][   lane2   ][      lane3   ]
+
+                let lane1 = Dust(inner_edge: dust.inner_edge, outer_edge: min_effect, dust_present: dust.dust_present, gas_present: dust.gas_present, next_band: nil)
+                let lane2 = Dust(inner_edge: min_effect, outer_edge: max_effect, dust_present: false, gas_present: dust.gas_present ? gas : false, next_band: nil)
+                let lane3 = Dust(inner_edge: max_effect, outer_edge: dust.outer_edge, dust_present: dust.dust_present, gas_present: dust.gas_present, next_band: nil)
+                return [lane1, lane2, lane3]
+            } else if dust.inner_edge < max_effect && dust.outer_edge > max_effect {
+                //         dust.inner ---------- dust.outer
+                //   min -------------- max
+                //         [    lane1     ][   lane2      ]
+
+                let lane1 = Dust(inner_edge: dust.inner_edge, outer_edge: max_effect, dust_present: false, gas_present: dust.gas_present ? gas : false, next_band: nil)
+                let lane2 = Dust(inner_edge: max_effect, outer_edge: dust.outer_edge, dust_present: dust.dust_present, gas_present: dust.gas_present, next_band: nil)
+                return [lane1, lane2]
+            } else if dust.inner_edge < min_effect && dust.outer_edge > min_effect {
+                //        dust.inner ---------- dust.outer
+                //                        min ----------------- max
+                //        [    lane1     ][     lane2    ]
+
+                let lane1 = Dust(inner_edge: dust.inner_edge, outer_edge: min_effect, dust_present: dust.dust_present, gas_present: dust.gas_present, next_band: nil)
+                let lane2 = Dust(inner_edge: min_effect, outer_edge: dust.outer_edge, dust_present: false, gas_present: dust.gas_present ? gas : false, next_band: nil)
+                return [lane1, lane2]
+            } else if dust.inner_edge >= min_effect && dust.outer_edge <= max_effect {
+                //       dust.inner --- dust.outer
+                //  min ------------------------------ max
+                //       [         lane1         ]
+                let lane1 = Dust(inner_edge: dust.inner_edge, outer_edge: dust.outer_edge, dust_present: false, gas_present: dust.gas_present ? gas : false, next_band: nil)
+                return [lane1]
+            } else if dust.outer_edge < min_effect || dust.inner_edge > max_effect {
+                //       node1.inner --- node1.outer
+                //                                     min ----- max
+                // OR
+                //                       node1.inner --- node1.outer
+                //       min ----- max
+                // no overlap or effect on this lane:
+                let lane1 = Dust(inner_edge: dust.inner_edge, outer_edge: dust.outer_edge, dust_present: dust.dust_present, gas_present: dust.gas_present, next_band: nil)
+                return [lane1]
+            }
+            return []
+        }
+
+        let collapsed: [Dust] = depleted_lanes.reduce(into: []) { partialResult, dust in
+            if partialResult.last != nil {
+                let prev = partialResult.removeLast()
+                if prev.dust_present == dust.dust_present, prev.gas_present == dust.gas_present {
+                    // equivalent values, collapse them together
+                    let newDust = Dust(inner_edge: min(prev.inner_edge, dust.inner_edge),
+                                       outer_edge: max(prev.outer_edge, dust.outer_edge),
+                                       dust_present: prev.dust_present, gas_present: prev.gas_present, next_band: nil)
+                    partialResult.append(newDust)
+                } else {
+                    partialResult.append(prev)
+                    partialResult.append(dust)
                 }
+
+            } else {
+                // empty partialResult, so just pop in the current value - first in the list
+                partialResult.append(dust)
             }
         }
-        // walk through the tree after the updates, and collapse bands that are equivalent
-        // together
-        node1 = dust_head
-        while (node1 != nil) {
-            if let definitely_node1 = node1 {
-                if definitely_node1.dust_present && definitely_node1.outer_edge >= body_inner_bound && definitely_node1.inner_edge <= body_outer_bound {
-                    dust_left = true
-                }
-                node2 = definitely_node1.next_band
-                if let definitely_node2 = node2 {
-                    if definitely_node1.dust_present == definitely_node2.dust_present && definitely_node1.gas_present == definitely_node2.gas_present {
-                        definitely_node1.outer_edge = definitely_node2.outer_edge
-                        definitely_node1.next_band = definitely_node2.next_band
-                        // free(node2)
-                    }
-                }
-            }
-            node1 = node1?.next_band
+        return collapsed
+    }
+
+    struct DustAndGas {
+        var dust: Double
+        var gas: Double
+        func accretion_effect_range(a: Double, e: Double, cloud_eccentricity: Double) -> ClosedRange<Double> {
+            // calculate the effect limits of dust collection based on a reduced mass
+            let reduced_mass = pow(mass / (1.0 + mass), 1.0 / 4.0)
+            return AccretionDisk.inner_effect_limit(a: a, e: e, mass: reduced_mass, cloud_eccentricity: cloud_eccentricity) ... AccretionDisk.outer_effect_limit(a: a, e: e, mass: reduced_mass, cloud_eccentricity: cloud_eccentricity)
+        }
+
+        var mass: Double {
+            dust + gas
+        }
+
+        var reduced_mass: Double {
+            pow(mass / (1.0 + mass), 1.0 / 4.0)
+        }
+
+        public static func + (lhs: DustAndGas, rhs: DustAndGas) -> DustAndGas {
+            DustAndGas(dust: lhs.dust + rhs.dust, gas: lhs.gas + rhs.gas)
         }
     }
-    
-    // called from `accrete_dust`
-    //void update_dust_lanes(long double min, long double max, long double mass,
-    //                       long double crit_mass, long double body_inner_bound,
-    //                       long double body_outer_bound)
-    //{
-    //    int             gas;
-    //    dust_pointer    node1;
-    //    dust_pointer    node2;
-    //    dust_pointer    node3;
-    //
-    //    dust_left = FALSE;
-    //    if ((mass > crit_mass))
-    //        gas = FALSE;
-    //    else
-    //        gas = TRUE;
-    //    node1 = dust_head;
-    //    while ((node1 != NULL))
-    //    {
-    //        if (((node1->inner_edge < min) && (node1->outer_edge > max)))
-    //        {
-    //            node2 = (dust *)malloc(sizeof(dust));
-    //            node2->inner_edge = min;
-    //            node2->outer_edge = max;
-    //            if ((node1->gas_present == TRUE))
-    //                node2->gas_present = gas;
-    //            else
-    //                node2->gas_present = FALSE;
-    //            node2->dust_present = FALSE;
-    //            node3 = (dust *)malloc(sizeof(dust));
-    //            node3->inner_edge = max;
-    //            node3->outer_edge = node1->outer_edge;
-    //            node3->gas_present = node1->gas_present;
-    //            node3->dust_present = node1->dust_present;
-    //            node3->next_band = node1->next_band;
-    
-    //            node1->next_band = node2;
-    //            node2->next_band = node3;
-    //            node1->outer_edge = min;
-    //            node1 = node3->next_band;
-    //        }
-    //        else
-    //            if (((node1->inner_edge < max) && (node1->outer_edge > max)))
-    //            {
-    //                node2 = (dust *)malloc(sizeof(dust));
-    //                node2->next_band = node1->next_band;
-    //                node2->dust_present = node1->dust_present;
-    //                node2->gas_present = node1->gas_present;
-    //                node2->outer_edge = node1->outer_edge;
-    //                node2->inner_edge = max;
-    //                node1->next_band = node2;
-    //                node1->outer_edge = max;
-    //                if ((node1->gas_present == TRUE))
-    //                    node1->gas_present = gas;
-    //                else
-    //                    node1->gas_present = FALSE;
-    //                node1->dust_present = FALSE;
-    //                node1 = node2->next_band;
-    //            }
-    //            else
-    //                if (((node1->inner_edge < min) && (node1->outer_edge > min)))
-    //                {
-    //                    node2 = (dust *)malloc(sizeof(dust));
-    //                    node2->next_band = node1->next_band;
-    //                    node2->dust_present = FALSE;
-    //                    if ((node1->gas_present == TRUE))
-    //                        node2->gas_present = gas;
-    //                    else
-    //                        node2->gas_present = FALSE;
-    //                    node2->outer_edge = node1->outer_edge;
-    //                    node2->inner_edge = min;
-    //                    node1->next_band = node2;
-    //                    node1->outer_edge = min;
-    //                    node1 = node2->next_band;
-    //                }
-    //                else
-    //                    if (((node1->inner_edge >= min) && (node1->outer_edge <= max)))
-    //                    {
-    //                        if ((node1->gas_present == TRUE))
-    //                            node1->gas_present = gas;
-    //                        node1->dust_present = FALSE;
-    //                        node1 = node1->next_band;
-    //                    }
-    //                    else
-    //                        if (((node1->outer_edge < min) || (node1->inner_edge > max)))
-    //                            node1 = node1->next_band;
-    //    }
-    //    node1 = dust_head;
-    //    while ((node1 != NULL))
-    //    {
-    //        if (((node1->dust_present)
-    //            && (((node1->outer_edge >= body_inner_bound)
-    //                && (node1->inner_edge <= body_outer_bound)))))
-    //            dust_left = TRUE;
-    //        node2 = node1->next_band;
-    //        if ((node2 != NULL))
-    //        {
-    //            if (((node1->dust_present == node2->dust_present)
-    //                && (node1->gas_present == node2->gas_present)))
-    //            {
-    //                node1->outer_edge = node2->outer_edge;
-    //                node1->next_band = node2->next_band;
-    //                free(node2);
-    //            }
-    //        }
-    //        node1 = node1->next_band;
-    //    }
-    //}
-    
-    
-    // called from `accrete_dust`
-    mutating func collect_dust(last_mass: Double, new_dust: inout Double, new_gas: inout Double, a: Double, e: Double, crit_mass: Double, dust_band: Dust?) -> Double {
-        // recursively sweeps through the existing dust lanes, recursively walking down the linked list of dust lanes
-        // and collecting all the dust defined by the initial orbit position (a: in AU) with an eccentricity (e), the boundary
+
+    /// Computes the mass collected during an accretion pass at the distance, and eccentricity you provide.
+    /// - Parameters:
+    ///   - mass: The mass, in solar masses, accreting dust and/or gas.
+    ///   - critical_mass: The mass at which gas accretes as well as dust.
+    ///   - a: The distance, in AU, of the orbit.
+    ///   - e: The eccentricity of the orbit.
+    /// - Returns: The mass, in solar masses, available to be gathered.
+    func collect_dust(mass: Double, critical_mass: Double, a: Double, e: Double, dust_density: Double) -> DustAndGas {
+        // sweeps through the existing dust lanes, collecting all the dust defined by the initial
+        // orbit position (a: in AU) with an eccentricity (e), the boundary
         // markers of which are calculated by inner_effect_limit() and outer_effect_limit().
-        
-        var mass_density: Double
-        var    temp1: Double
-        var    temp2: Double
-        
-        var    temp_density: Double
-        var    bandwidth: Double
-        var    width: Double
-        let    volume: Double
-        var    gas_density: Double = 0.0
-        var    new_mass: Double
-        var    next_mass: Double
-        var    next_dust: Double = 0
-        var    next_gas: Double = 0
-        
-        // calculate the effect limits of dust collection based on a reduced mass
-        let reduced_mass = pow(last_mass / (1.0 + last_mass),(1.0 / 4.0))
-        r_inner = inner_effect_limit(a: a, e: e, mass: reduced_mass)
-        r_outer = outer_effect_limit(a: a, e: e, mass: reduced_mass)
-        if r_inner < 0.0 {
-            r_inner = 0.0
-        }
-        
-        guard let dust_band = dust_band else {
-            return 0.0
-        }
-        
-        if (dust_band.dust_present == false) {
-            temp_density = 0.0
-        } else {
-            temp_density = dust_density
-        }
-        
-        if last_mass < crit_mass || dust_band.gas_present == false {
-            mass_density = temp_density
-        } else {
-            mass_density = K * temp_density / (1.0 + sqrt(crit_mass / last_mass) * (K - 1.0))
-            gas_density = mass_density - temp_density
-        }
-        
-        if dust_band.outer_edge <= r_inner || dust_band.inner_edge >= r_outer {
-            // the effect band doesn't overlap with this dust lane, iterate through further dust lanes
-            return collect_dust(last_mass: last_mass, new_dust: &new_dust, new_gas: &new_gas, a: a, e: e, crit_mass: crit_mass, dust_band: dust_band.next_band)
-        } else {
-            bandwidth = (r_outer - r_inner)
-            
-            temp1 = r_outer - dust_band.outer_edge
-            if (temp1 < 0.0) {
-                temp1 = 0.0
+
+        let seed_dg = DustAndGas(dust: mass, gas: 0)
+        let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
+
+        let massByLane: [DustAndGas] = dust_lanes.map { dustlane in
+            let temp_density: Double
+            let mass_density: Double
+            let gas_density: Double
+
+            if dustlane.dust_present == false {
+                temp_density = 0.0
+            } else {
+                temp_density = dust_density
             }
-            width = bandwidth - temp1
-            
-            temp2 = dust_band.inner_edge - r_inner
-            if (temp2 < 0.0) {
-                temp2 = 0.0
+
+            if mass < critical_mass || dustlane.gas_present == false {
+                gas_density = 0.0
+                mass_density = temp_density
+            } else {
+                mass_density = K * temp_density / (1.0 + sqrt(critical_mass / mass) * (K - 1.0))
+                gas_density = mass_density - temp_density
             }
-            width = width - temp2
-            
-            volume = 4.0 * Double.pi * pow(a,2.0) * reduced_mass * (1.0 - e * (temp1 - temp2) / bandwidth) * width
-            
-            new_mass  = volume * mass_density
-            new_gas  = volume * gas_density
-            new_dust = new_mass - new_gas
-            
-            next_mass = collect_dust(last_mass: last_mass, new_dust: &next_dust, new_gas: &next_gas, a: a, e: e, crit_mass: crit_mass, dust_band: dust_band.next_band)
-            
-            new_gas  +=  next_gas
-            new_dust +=  next_dust
-            
-            return(new_mass + next_mass)
+
+            if accretion_effect_range.overlaps(dustlane.inner_edge ... dustlane.outer_edge) {
+                let bandwidth = accretion_effect_range.upperBound - accretion_effect_range.lowerBound
+                var width = bandwidth
+
+                var outer_width_reduction = accretion_effect_range.upperBound - dustlane.outer_edge
+                if outer_width_reduction < 0 {
+                    outer_width_reduction = 0
+                }
+                var inner_width_reduction = dustlane.inner_edge - accretion_effect_range.lowerBound
+                if inner_width_reduction < 0 {
+                    inner_width_reduction = 0
+                }
+
+                width -= outer_width_reduction
+                width -= inner_width_reduction
+
+                let volume = 4.0 * Double.pi * pow(a, 2.0) * mass * (1.0 - e * (outer_width_reduction - inner_width_reduction) / bandwidth) * width
+
+                let accumulated_mass = volume * mass_density
+                let gas_mass = volume * gas_density
+                let dust_mass = accumulated_mass - gas_mass
+                return DustAndGas(dust: dust_mass, gas: gas_mass)
+            }
+            return DustAndGas(dust: 0, gas: 0)
         }
+
+        let accumulatedMass: DustAndGas = massByLane.reduce(into: DustAndGas(dust: 0, gas: 0)) { partialResult, dg in
+            partialResult = partialResult + dg
+        }
+
+        return accumulatedMass
     }
-    
-    //// recursive function called originally from `accrete_dust`
-    //long double collect_dust(long double last_mass, long double *new_dust,
-    //                         long double *new_gas,
-    //                         long double a, long double e,
-    //                         long double crit_mass, dust_pointer dust_band)
-    //{
-    //    long double    mass_density;
-    //    long double    temp1;
-    //    long double    temp2;
-    //    long double    temp;
-    //    long double    temp_density;
-    //    long double    bandwidth;
-    //    long double    width;
-    //    long double    volume;
-    //    long double    gas_density = 0.0;
-    //    long double    new_mass;
-    //    long double    next_mass;
-    //    long double    next_dust = 0;
-    //    long double    next_gas = 0;
-    //
-    //
-    //    temp = last_mass / (1.0 + last_mass);
-    //    reduced_mass = pow(temp,(1.0 / 4.0));
-    //    r_inner = inner_effect_limit(a, e, reduced_mass);
-    //    r_outer = outer_effect_limit(a, e, reduced_mass);
-    //
-    //    if ((r_inner < 0.0))
-    //        r_inner = 0.0;
-    //
-    //    if ((dust_band == NULL))
-    //        return(0.0);
-    //    else
-    //    {
-    //        if ((dust_band->dust_present == FALSE))
-    //            temp_density = 0.0;
-    //        else
-    //            temp_density = dust_density;
-    //
-    //        if (((last_mass < crit_mass) || (dust_band->gas_present == FALSE)))
-    //            mass_density = temp_density;
-    //        else
-    //        {
-    //            mass_density = K * temp_density / (1.0 + sqrt(crit_mass / last_mass)
-    //                                        * (K - 1.0));
-    //            gas_density = mass_density - temp_density;
-    //        }
-    //
-    //        if (((dust_band->outer_edge <= r_inner)
-    //          || (dust_band->inner_edge >= r_outer)))
-    //        {
-    //            return(collect_dust(last_mass, new_dust, new_gas,
-    //                                a,e,crit_mass, dust_band->next_band));
-    //        }
-    //        else
-    //        {
-    //            bandwidth = (r_outer - r_inner);
-    //
-    //            temp1 = r_outer - dust_band->outer_edge;
-    //            if (temp1 < 0.0)
-    //                temp1 = 0.0;
-    //            width = bandwidth - temp1;
-    //
-    //            temp2 = dust_band->inner_edge - r_inner;
-    //            if (temp2 < 0.0)
-    //                temp2 = 0.0;
-    //            width = width - temp2;
-    //
-    //            temp = 4.0 * PI * pow(a,2.0) * reduced_mass
-    //                * (1.0 - e * (temp1 - temp2) / bandwidth);
-    //            volume = temp * width;
-    //
-    //            new_mass  = volume * mass_density;
-    //            *new_gas  = volume * gas_density;
-    //            *new_dust = new_mass - *new_gas;
-    //
-    //            next_mass = collect_dust(last_mass, &next_dust, &next_gas,
-    //                                     a,e,crit_mass, dust_band->next_band);
-    //
-    //            *new_gas  = *new_gas + next_gas;
-    //            *new_dust = *new_dust + next_dust;
-    //
-    //            return(new_mass + next_mass);
-    //        }
-    //    }
-    //}
-    
-    
-    /*--------------------------------------------------------------------------*/
-    /*     Orbital radius is in AU, eccentricity is unitless, and the stellar        */
-    /*    luminosity ratio is with respect to the sun.  The value returned is the */
-    /*    mass at which the planet begins to accrete gas as well as dust, and is    */
-    /*    in units of solar masses.                                                */
-    /*--------------------------------------------------------------------------*/
-    
-    func critical_limit(orb_radius: Double, eccentricity: Double, stell_luminosity_ratio: Double) -> Double {
-        let perihelion_dist = (orb_radius - orb_radius * eccentricity)
-        let temp = perihelion_dist * sqrt(stell_luminosity_ratio)
-        return B * pow(temp, -0.75)
+
+    func updated_orbit(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double) -> (a: Double, e: Double) {
+        let new_a = (planet.mass + planetesimal.mass) / ((planet.mass / planet.a) + (planetesimal.mass / a))
+
+        var temp = planet.mass * sqrt(planet.a) * sqrt(1.0 - pow(planet.e, 2.0))
+        temp += (planetesimal.mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e, 2.0))))
+        temp /= ((planet.mass + planetesimal.mass) * sqrt(new_a))
+        temp = 1.0 - pow(temp, 2.0)
+        if temp < 0.0 || temp >= 1.0 {
+            temp = 0.0
+        }
+        let new_e = sqrt(temp)
+        return (new_a, new_e)
     }
-    //long double critical_limit(long double orb_radius, long double eccentricity,
-    //                           long double stell_luminosity_ratio)
-    //{
-    //    long double    temp;
-    //    long double    perihelion_dist;
-    //
-    //    perihelion_dist = (orb_radius - orb_radius * eccentricity);
-    //    temp = perihelion_dist * sqrt(stell_luminosity_ratio);
-    //    return(B * pow(temp,-0.75));
-    //}
-    
-    // called from `coalesce_planetesimals` and `dist_planetary_masses`
-    mutating func accrete_dust(seed_mass: inout Double, new_dust: inout Double, new_gas: inout Double, a: Double, e: Double, crit_mass: Double, body_inner_bound: Double, body_outer_bound: Double) {
-        // This function is effectively creating planetesimals, sweeping through dust lanes using 'collect dust' until
-        // it stops growing at a notable rate. That's set by the comparison of "mass collected" and the last sweep through
-        // being less thatn 0.0001 times larger than the previous sweep.
-        var new_mass = seed_mass
-        var temp_mass: Double
+
+    mutating func accrete_dust(seed_mass: DustAndGas, a: Double, e: Double, crit_mass: Double, dust_density: Double) -> DustAndGas {
+        // called from `coalesce_planetesimals` and `dist_planetary_masses`/`advance`
+
+        // This function is creating planetesimals (represented by a DustAndGas instance),
+        // sweeping through dust lanes using 'collect_dust' until it stops growing at a notable rate.
+        // Growth from the last sweep being less than 0.0001 times larger than the previous sweep.
+        var temp_mass = seed_mass
+        var new_mass: DustAndGas = temp_mass
+        var growth: Double = 0
         repeat {
             temp_mass = new_mass
-            new_mass = collect_dust(last_mass: new_mass, new_dust: &new_dust, new_gas: &new_gas, a: a, e: e, crit_mass: crit_mass, dust_band: dust_head)
-            
-        } while !((new_mass - temp_mass) < (0.0001 * temp_mass))
-        
-        seed_mass += new_mass
-        update_dust_lanes(min: r_inner, max: r_outer, mass: seed_mass, crit_mass: crit_mass, body_inner_bound: body_inner_bound, body_outer_bound: body_outer_bound)
+            new_mass = collect_dust(mass: temp_mass.mass, critical_mass: crit_mass, a: a, e: e, dust_density: dust_density)
+            growth = new_mass.mass - temp_mass.mass
+        } while !(growth < (0.0001 * temp_mass.mass))
+
+        let grownMass = seed_mass + new_mass
+        let accretion_effect_range = grownMass.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
+        // MUTATION PARTS BELOW
+        dust_lanes = updated_dust_lanes(accretion_effect_range: accretion_effect_range, mass: grownMass.mass, crit_mass: crit_mass)
+        dust_left = dust_available(planet_inner_bound ... planet_outer_bound)
+        return grownMass
     }
-    // called from `coalesce_planetesimals` and `dist_planetary_masses`
-    //    void accrete_dust(long double *seed_mass, long double *new_dust, long double *new_gas,
-    //                      long double a, long double e, long double crit_mass,
-    //                      long double body_inner_bound, long double body_outer_bound)
-    //    {
-    //        long double    new_mass = (*seed_mass);
-    //        long double    temp_mass;
-    //
-    //        do
-    //        {
-    //            temp_mass = new_mass;
-    //            new_mass = collect_dust(new_mass, new_dust, new_gas,
-    //                                    a,e,crit_mass, dust_head);
-    //        }
-    //        while (!(((new_mass - temp_mass) < (0.0001 * temp_mass))));
-    //
-    //        (*seed_mass) = (*seed_mass) + new_mass;
-    //        update_dust_lanes(r_inner,r_outer,(*seed_mass),crit_mass,body_inner_bound,body_outer_bound);
-    //    }
-    
-    // called from `dist_planetary_masses`
-    // NOTE(heckj): Refactoring note - it looks like we might be able to make this a lot easier
-    // by implementing a set of planets in an array and iterating through them, updating the ordering as needed. The
-    // current code is straight from the original accrete, and follows the linked-list mechanisms that were used there.
-    mutating func coalesce_planetesimals(a: Double, e: Double, mass: Double, crit_mass: Double, dust_mass: Double, gas_mass: Double, stell_luminosity_ratio: Double, body_inner_bound: Double, body_outer_bound: Double, do_moons: Bool) {
-        
-        var the_planet: Planet? = nil
-        var next_planet: Planet? = nil
-        var prev_planet: Planet? = nil
-        var finished: Bool = false
-        var dist1: Double
-        var dist2: Double
-        var temp: Double = 0
+
+    func attempted_moon_capture(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double, crit_mass: Double) -> (captured: Bool, Planet) {
+        let existing_mass: Double = planet.moons.reduce(into: 0.0) { partialResult, moon in
+            partialResult += moon.mass
+        }
+        // only planetesimals below critical mass can become moons
+        if planetesimal.mass < crit_mass {
+            let moon_capture = planetesimal.mass * SUN_MASS_IN_EARTH_MASSES < 2.5 &&
+                planetesimal.mass * SUN_MASS_IN_EARTH_MASSES > 0.001 &&
+                existing_mass < planet.mass * 0.05
+            if moon_capture {
+                if planetesimal.mass > planet.mass {
+                    // captured planet out-masses the existing planet, so the existing
+                    // planet *becomes* the moon.
+                    let new_moon = Planet(
+                        planet_no: 0,
+                        a: a,
+                        e: e,
+                        axial_tilt: planet.axial_tilt,
+                        mass: planet.mass,
+                        gas_giant: false,
+                        dust_mass: planet.dust_mass,
+                        gas_mass: planet.gas_mass,
+                        next_planet: nil
+                    )
+                    planet.dust_mass = planetesimal.dust
+                    planet.gas_mass = planetesimal.gas
+                    planet.mass = planetesimal.mass
+                    planet.moons.append(new_moon)
+                } else {
+                    let new_moon = Planet(
+                        planet_no: 0,
+                        a: a,
+                        e: e,
+                        axial_tilt: 0,
+                        mass: planetesimal.mass,
+                        gas_giant: false,
+                        dust_mass: planetesimal.dust,
+                        gas_mass: planetesimal.gas,
+                        next_planet: nil
+                    )
+                    planet.moons.append(new_moon)
+                }
+                print("Moon captured: \(planet.a) AU \(planet.mass * SUN_MASS_IN_EARTH_MASSES)EM <- \(planetesimal.mass * SUN_MASS_IN_EARTH_MASSES)EM")
+                return (true, planet)
+            } else {
+                // moon escape
+                var escape_reason = ""
+                if (planetesimal.mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 {
+                    escape_reason = ", too big"
+                } else if (planetesimal.mass * SUN_MASS_IN_EARTH_MASSES) <= 0.0001 {
+                    escape_reason = ", too small"
+                }
+                print("Moon escapes: \(planet.a) AU (\(planet.mass * SUN_MASS_IN_EARTH_MASSES))EM \(planetesimal.mass * SUN_MASS_IN_EARTH_MASSES) EM\(escape_reason)")
+                return (false, planet)
+            }
+        }
+        // planetesimal has achieved critical mass - gathers gas as well as dust
+        return (false, planet)
+    }
+
+    mutating func collide(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double, crit_mass: Double) -> (Planet) {
+        print("Collision between planet and planetesimal! \(planet.a) AU (\(planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(planetesimal.mass * SUN_MASS_IN_EARTH_MASSES)EM = \(planetesimal.dust * SUN_MASS_IN_EARTH_MASSES)EMd + \(planetesimal.gas * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(a) AU (\(e))")
+
+        let combined = DustAndGas(dust: planet.dust_mass + planetesimal.dust, gas: planet.gas_mass + planetesimal.gas)
+
+        let local_dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
+        // NOTE(heckj): accrete_dust has the side effect of updating the dust lanes...
+        let updated_mass = accrete_dust(seed_mass: combined, a: a, e: e, crit_mass: crit_mass, dust_density: local_dust_density)
+
+        planet.a = a
+        planet.e = e
+        planet.dust_mass = updated_mass.dust
+        planet.gas_mass = updated_mass.gas
+        planet.mass = updated_mass.mass
+        if updated_mass.mass >= crit_mass {
+            planet.gas_giant = true
+        }
+        return planet
+    }
+
+    mutating func coalesce_planetesimals(planetesimal: DustAndGas, a: Double, e: Double, crit_mass: Double, do_moons: Bool) -> [Planet] {
+        // Takes the provided planetesimal and iterates through, colliding or merging it into the list of existing planets
+        // as appropriate.
+        var planets = planets
+        var finished = false
+
         // First we try to find an existing planet with an over-lapping orbit.
-        
-        the_planet = planet_head
-        while let this_planet = the_planet {
-            
-            let diff = this_planet.a - a
-            the_planet = the_planet?.next_planet
-            if diff > 0.0 {
-                dist1 = (a * (1.0 + e) * (1.0 + reduced_mass)) - a
-                /* x aphelion     */
-                reduced_mass = pow((this_planet.mass / (1.0 + this_planet.mass)),(1.0 / 4.0))
-                dist2 = this_planet.a - (this_planet.a * (1.0 - this_planet.e) * (1.0 - reduced_mass))
-            } else {
-                dist1 = a - (a * (1.0 - e) * (1.0 - reduced_mass))
-                /* x perihelion */
-                reduced_mass = pow((this_planet.mass / (1.0 + this_planet.mass)),(1.0 / 4.0));
-                dist2 = (this_planet.a * (1.0 + this_planet.e) * (1.0 + reduced_mass)) - this_planet.a;
-            }
-            // fabs(_) returns the absolute value of the provided floating point number
-            if fabs(diff) <= fabs(dist1) || fabs(diff) <= fabs(dist2) {
-                var new_dust: Double = 0
-                var new_gas: Double = 0
-                let new_a = (this_planet.mass + mass) / ((this_planet.mass / this_planet.a) + (mass / a))
-                temp = this_planet.mass * sqrt(this_planet.a) * sqrt(1.0 - pow(this_planet.e, 2.0))
-                temp += (mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e, 2.0))))
-                temp /= ((this_planet.mass + mass) * sqrt(new_a))
-                temp = 1.0 - pow(temp,2.0)
-                if temp < 0.0 || temp >= 1.0 {
-                    temp = 0.0
-                }
-                let e = sqrt(temp)
-                
-                if do_moons {
-                    var existing_mass: Double = 0.0
-                    
-                    // walk through the linked list of moons and get the summed mass of them
-                    var current_moon: Planet? = this_planet.first_moon
-                    while (current_moon != nil) {
-                        existing_mass += current_moon?.mass ?? 0.0
-                        current_moon = current_moon?.next_planet
-                    }
-                    if mass < crit_mass {
-                        if mass * SUN_MASS_IN_EARTH_MASSES < 2.5 &&
-                            mass * SUN_MASS_IN_EARTH_MASSES > 0.001 &&
-                            existing_mass < this_planet.mass * 0.05 {
-                            //NOTE(heckj): Refactoring note - all we're really caring about with Planets (planetisimals)
-                            // at this point is mass (total, dust, gas) and distance (au), and to a lesser extent we
-                            // set gas_giant = true when it exceeds a critical mass point. So the rest of the initializer
-                            // bits are just excessive noise at this point, most of which can default to 0 to be calculated
-                            // at a later stage.
-                            let the_moon = Planet(
-                                planet_no: 0,
-                                a: a,
-                                e: e,
-                                axial_tilt: 0,
-                                mass: mass,
-                                gas_giant: false,
-                                dust_mass: dust_mass, gas_mass: gas_mass,
-                                next_planet: nil)
-                            if (the_moon.dust_mass + the_moon.gas_mass) > this_planet.dust_mass + this_planet.gas_mass {
-                                // if the moon has more mass than the planet, switch them around
-                                
-                                let temp_dust = this_planet.dust_mass
-                                let temp_gas = this_planet.gas_mass;
-                                let temp_mass = this_planet.mass;
-                                
-                                this_planet.dust_mass = the_moon.dust_mass
-                                this_planet.gas_mass = the_moon.gas_mass
-                                this_planet.mass = the_moon.mass
-                                
-                                the_moon.dust_mass = temp_dust
-                                the_moon.gas_mass = temp_gas
-                                the_moon.mass = temp_mass
-                            }
-                            
-                            if (this_planet.first_moon == nil) {
-                                // if this planet doesn't already have a first moon, make this one it's first moon
-                                this_planet.first_moon = the_moon
-                            } else {
-                                // otherwise insert it into the list of moons
-                                the_moon.next_planet = this_planet.first_moon
-                                this_planet.first_moon = the_moon
-                            }
+        if let planet_with_overlaping_orbit = planets.first(where: { planet in
+            planet.a > a
+        }) {
+            if let index_first_overlapping = planets.firstIndex(of: planet_with_overlaping_orbit),
+               index_first_overlapping > 0
+            {
+                let previous_planet = planets[index_first_overlapping - 1]
+
+                // prev planet calculations
+
+                // planetesimal orbit with extreme eccentricity
+                let max_dist_to_prev = (a * (1.0 + e) * (1.0 - planetesimal.reduced_mass))
+
+                /* previous planet's perihelion based on eccentricity */
+                let min_dist_to_prev = (previous_planet.a * (1.0 + previous_planet.e) * (1.0 + previous_planet.reduced_mass)) - previous_planet.a
+
+                let mean_dist_to_prev = a - previous_planet.a
+
+                // fabs(_) returns the absolute value of the provided floating point number
+                if fabs(mean_dist_to_prev) <= fabs(max_dist_to_prev) || fabs(mean_dist_to_prev) <= fabs(min_dist_to_prev) {
+                    // collision with orbital flow of the previous planet
+
+                    let (new_a, new_e) = updated_orbit(planet: previous_planet, planetesimal: planetesimal, a: a, e: e)
+                    // NOW DO SOMETHING WITH THE NEW a and e values
+                    if do_moons {
+                        let (captured, _) = attempted_moon_capture(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        if captured {
                             finished = true
-                            print("Moon captured: \(this_planet.a) AU \(this_planet.mass * SUN_MASS_IN_EARTH_MASSES) <- \(mass * SUN_MASS_IN_EARTH_MASSES)")
-                            
-                        } else {
-                            var escape_reason = ""
-                            if (mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 {
-                                escape_reason = ", too big"
-                            } else if ((mass * SUN_MASS_IN_EARTH_MASSES) <= 0.0001) {
-                                escape_reason = ", too small"
-                            }
-                            print("Moon escapes: \(this_planet.a) AU (\(this_planet.mass * SUN_MASS_IN_EARTH_MASSES))\(mass * SUN_MASS_IN_EARTH_MASSES) \(escape_reason)")
                         }
                     }
-                }
-                
-                if !finished {
-                    print("Collision between two planetesimals! \(this_planet.a) AU (\(this_planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(mass * SUN_MASS_IN_EARTH_MASSES)EM = \(dust_mass * SUN_MASS_IN_EARTH_MASSES)EMd + \(gas_mass * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(new_a) AU (\(e))")
-                    temp = this_planet.mass + mass
-                    accrete_dust(seed_mass: &temp, new_dust: &new_dust, new_gas: &new_gas, a: new_a, e: e, crit_mass: stell_luminosity_ratio, body_inner_bound: body_inner_bound, body_outer_bound: body_outer_bound)
-                    this_planet.a = new_a
-                    this_planet.e = e
-                    this_planet.mass = temp
-                    this_planet.dust_mass += dust_mass + new_dust
-                    this_planet.gas_mass += gas_mass + new_gas
-                    if (temp >= crit_mass) {
-                        this_planet.gas_giant = true
+
+                    if !finished {
+                        // collide previous planet and planetesimal
+                        // collide has the side effect of potential additional accretion, and updating the dust lanes
+                        _ = collide(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        finished = true
                     }
-                    
-                    // Walk the list of planets and move the linked list around to re-order the planetesimals
-                    while (this_planet.next_planet != nil && this_planet.next_planet!.a < new_a) {
-                        next_planet = this_planet.next_planet
-                        if (the_planet == planet_head) {
-                            planet_head = next_planet
-                        } else {
-                            prev_planet?.next_planet = next_planet
+                }
+                // no intersection with previous planets, continue looking for overlap and possible collision
+            }
+
+            if !finished {
+                // if finished, then we collided and interacted with the previous planet and shouldn't check or attempt
+                // capture or collision with the next planet in the sequence.
+
+                // next planet calculations
+                let mean_dist_to_next = planet_with_overlaping_orbit.a - a
+
+                // planetesimals' maximum orbital swing with eccentricity
+                let max_dist_to_next = (a * (1.0 + e) * (1.0 - planetesimal.reduced_mass))
+
+                /* next planets aphelion based on eccentricity */
+                let min_dist_to_next = planet_with_overlaping_orbit.a - (planet_with_overlaping_orbit.a * (1.0 - planet_with_overlaping_orbit.e) * (1.0 - planet_with_overlaping_orbit.reduced_mass))
+
+                // fabs(_) returns the absolute value of the provided floating point number
+                if fabs(mean_dist_to_next) <= fabs(max_dist_to_next) || fabs(mean_dist_to_next) <= fabs(min_dist_to_next) {
+                    // collision with orbital flow of the next planet
+                    let (new_a, new_e) = updated_orbit(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: a, e: e)
+                    // NOW DO SOMETHING WITH THE NEW a and e values
+
+                    if do_moons {
+                        let (captured, _) = attempted_moon_capture(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        if captured {
+                            finished = true
                         }
-                        this_planet.next_planet = next_planet?.next_planet
-                        next_planet?.next_planet = this_planet
-                        prev_planet = next_planet
+                    }
+
+                    if !finished {
+                        // collide next planet and planetesimal
+                        // collide has the side effect of potential additional accretion, and updating the dust lanes
+                        _ = collide(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        finished = true
                     }
                 }
-                finished = true
-                break
+                // no intersection/collision with the next planet in the sequence
             } else {
-                prev_planet = the_planet
-            }
-        }
-
-        // Planetesimals didn't collide. Make it a planet.
-        if (!finished) {
-            the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: mass, gas_giant: (mass >= crit_mass), dust_mass: dust_mass, gas_mass: gas_mass, next_planet: nil)
-
-            if planet_head == nil {
-                planet_head = the_planet
-            } else if a < planet_head!.a {
-                the_planet?.next_planet = planet_head
-                planet_head = the_planet
-            } else if planet_head!.next_planet == nil {
-                planet_head?.next_planet = the_planet
-            } else {
-                next_planet = planet_head
-                while (next_planet != nil && next_planet!.a < a) {
-                    prev_planet = next_planet
-                    next_planet = next_planet!.next_planet
+                // No planet exists with an overlapping orbit
+                // Planetesimals didn't collide, so we make it into a planet.
+                let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
+                                        gas_giant: planetesimal.mass >= crit_mass,
+                                        dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
+                                        next_planet: nil)
+                if let insert_index = planets.firstIndex(where: { planet in
+                    planet.a > a
+                }) {
+                    planets.insert(the_planet, at: insert_index)
+                } else {
+                    planets.append(the_planet)
                 }
-                the_planet?.next_planet = next_planet
-                prev_planet?.next_planet = the_planet
             }
+        } else {
+            // No planet exists with an overlapping orbit
+            // Planetesimals didn't collide, so we make it into a planet.
+            let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
+                                    gas_giant: planetesimal.mass >= crit_mass,
+                                    dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
+                                    next_planet: nil)
+            planets.append(the_planet)
         }
+
+        return planets
     }
-    
-    
-    //void coalesce_planetesimals(long double a, long double e, long double mass, long double crit_mass,
-    //                            long double dust_mass, long double gas_mass,
-    //                            long double stell_luminosity_ratio,
-    //                            long double body_inner_bound, long double body_outer_bound,
-    //                            int            do_moons)
-    //{
-    //    planet_pointer    the_planet;
-    //    planet_pointer    next_planet;
-    //    planet_pointer    prev_planet;
-    //    int             finished;
-    //    long double     temp;
-    //    long double     diff;
-    //    long double     dist1;
-    //    long double     dist2;
-    //
-    //    finished = FALSE;
-    //    prev_planet = NULL;
-    //
-    //// First we try to find an existing planet with an over-lapping orbit.
-    //
-    //    for (the_planet = planet_head;
-    //         the_planet != NULL;
-    //         the_planet = the_planet->next_planet)
-    //    {
-    //        diff = the_planet->a - a;
-    //
-    //        if ((diff > 0.0))
-    //        {
-    //            dist1 = (a * (1.0 + e) * (1.0 + reduced_mass)) - a;
-    //            /* x aphelion     */
-    //            reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
-    //            dist2 = the_planet->a
-    //                - (the_planet->a * (1.0 - the_planet->e) * (1.0 - reduced_mass));
-    //        }
-    //        else
-    //        {
-    //            dist1 = a - (a * (1.0 - e) * (1.0 - reduced_mass));
-    //            /* x perihelion */
-    //            reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
-    //            dist2 = (the_planet->a * (1.0 + the_planet->e) * (1.0 + reduced_mass))
-    //                - the_planet->a;
-    //        }
-    //
-    //        if (((fabs(diff) <= fabs(dist1)) || (fabs(diff) <= fabs(dist2))))
-    //        {
-    //            long double new_dust = 0;
-    //            long double    new_gas = 0;
-    //            long double new_a = (the_planet->mass + mass) /
-    //                                ((the_planet->mass / the_planet->a) + (mass / a));
-    //
-    //            temp = the_planet->mass * sqrt(the_planet->a) * sqrt(1.0 - pow(the_planet->e,2.0));
-    //            temp = temp + (mass * sqrt(a) * sqrt(sqrt(1.0 - pow(e,2.0))));
-    //            temp = temp / ((the_planet->mass + mass) * sqrt(new_a));
-    //            temp = 1.0 - pow(temp,2.0);
-    //            if (((temp < 0.0) || (temp >= 1.0)))
-    //                temp = 0.0;
-    //            e = sqrt(temp);
-    //
-    //            if (do_moons)
-    //            {
-    //                long double existing_mass = 0.0;
-    //
-    //                if (the_planet->first_moon != NULL)
-    //                {
-    //                    planet_pointer    m;
-    //
-    //                    for (m = the_planet->first_moon;
-    //                         m != NULL;
-    //                         m = m->next_planet)
-    //                    {
-    //                        existing_mass += m->mass;
-    //                    }
-    //                }
-    //
-    //                if (mass < crit_mass)
-    //                {
-    //                    if ((mass * SUN_MASS_IN_EARTH_MASSES) < 2.5
-    //                     && (mass * SUN_MASS_IN_EARTH_MASSES) > .0001
-    //                     && existing_mass < (the_planet->mass * .05)
-    //                       )
-    //                    {
-    //                        planet_pointer    the_moon = (planets *)malloc(sizeof(planets));
-    //
-    //                        the_moon->type             = tUnknown;
-    //    /*                     the_moon->a             = a; */
-    //    /*                     the_moon->e             = e; */
-    //                        the_moon->mass             = mass;
-    //                        the_moon->dust_mass     = dust_mass;
-    //                        the_moon->gas_mass         = gas_mass;
-    //                        the_moon->atmosphere     = NULL;
-    //                        the_moon->next_planet     = NULL;
-    //                        the_moon->first_moon     = NULL;
-    //                        the_moon->gas_giant     = FALSE;
-    //                        the_moon->atmosphere    = NULL;
-    //                        the_moon->albedo        = 0;
-    //                        the_moon->gases            = 0;
-    //                        the_moon->surf_temp        = 0;
-    //                        the_moon->high_temp        = 0;
-    //                        the_moon->low_temp        = 0;
-    //                        the_moon->max_temp        = 0;
-    //                        the_moon->min_temp        = 0;
-    //                        the_moon->greenhs_rise    = 0;
-    //                        the_moon->minor_moons     = 0;
-    //
-    //                        if ((the_moon->dust_mass + the_moon->gas_mass)
-    //                          > (the_planet->dust_mass + the_planet->gas_mass))
-    //                        {
-    //                            long double    temp_dust = the_planet->dust_mass;
-    //                            long double temp_gas  = the_planet->gas_mass;
-    //                            long double temp_mass = the_planet->mass;
-    //
-    //                            the_planet->dust_mass = the_moon->dust_mass;
-    //                            the_planet->gas_mass  = the_moon->gas_mass;
-    //                            the_planet->mass      = the_moon->mass;
-    //
-    //                            the_moon->dust_mass   = temp_dust;
-    //                            the_moon->gas_mass    = temp_gas;
-    //                            the_moon->mass        = temp_mass;
-    //                        }
-    //
-    //                        if (the_planet->first_moon == NULL)
-    //                            the_planet->first_moon = the_moon;
-    //                        else
-    //                        {
-    //                            the_moon->next_planet = the_planet->first_moon;
-    //                            the_planet->first_moon = the_moon;
-    //                        }
-    //
-    //                        finished = TRUE;
-    //
-    //                        if (flag_verbose & 0x0100)
-    //                            fprintf (stderr, "Moon Captured... "
-    //                                     "%5.3Lf AU (%.2LfEM) <- %.2LfEM\n",
-    //                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                    mass * SUN_MASS_IN_EARTH_MASSES
-    //                                    );
-    //                    }
-    //                    else
-    //                    {
-    //                        if (flag_verbose & 0x0100)
-    //                            fprintf (stderr, "Moon Escapes... "
-    //                                     "%5.3Lf AU (%.2LfEM)%s %.2LfEM%s\n",
-    //                                    the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                    existing_mass < (the_planet->mass * .05) ? "" : " (big moons)",
-    //                                    mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                    (mass * SUN_MASS_IN_EARTH_MASSES) >= 2.5 ? ", too big" :
-    //                                      (mass * SUN_MASS_IN_EARTH_MASSES) <= .0001 ? ", too small" : ""
-    //                                    );
-    //                    }
-    //                }
-    //            }
-    //
-    //            if (!finished)
-    //            {
-    //                if (flag_verbose & 0x0100)
-    //                        fprintf (stderr, "Collision between two planetesimals! "
-    //                                "%4.2Lf AU (%.2LfEM) + %4.2Lf AU (%.2LfEM = %.2LfEMd + %.2LfEMg [%.3LfEM])-> %5.3Lf AU (%5.3Lf)\n",
-    //                                the_planet->a, the_planet->mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                a, mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                dust_mass * SUN_MASS_IN_EARTH_MASSES, gas_mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                crit_mass * SUN_MASS_IN_EARTH_MASSES,
-    //                                new_a, e);
-    //
-    //                temp = the_planet->mass + mass;
-    //                accrete_dust(&temp, &new_dust, &new_gas,
-    //                             new_a,e,stell_luminosity_ratio,
-    //                             body_inner_bound,body_outer_bound);
-    //
-    //                the_planet->a = new_a;
-    //                the_planet->e = e;
-    //                the_planet->mass = temp;
-    //                the_planet->dust_mass += dust_mass + new_dust;
-    //                the_planet->gas_mass += gas_mass + new_gas;
-    //                if (temp >= crit_mass)
-    //                    the_planet->gas_giant = TRUE;
-    //
-    //                while (the_planet->next_planet != NULL && the_planet->next_planet->a < new_a)
-    //                {
-    //                    next_planet = the_planet->next_planet;
-    //
-    //                    if (the_planet == planet_head)
-    //                        planet_head = next_planet;
-    //                    else
-    //                        prev_planet->next_planet = next_planet;
-    //
-    //                    the_planet->next_planet = next_planet->next_planet;
-    //                    next_planet->next_planet = the_planet;
-    //                    prev_planet = next_planet;
-    //                }
-    //            }
-    //
-    //            finished = TRUE;
-    //            break;
-    //        }
-    //        else
-    //        {
-    //            prev_planet = the_planet;
-    //        }
-    //    }
-    //
-    //    if (!(finished))            // Planetesimals didn't collide. Make it a planet.
-    //    {
-    //        the_planet = (planets *)malloc(sizeof(planets));
-    //
-    //        the_planet->type             = tUnknown;
-    //        the_planet->a                 = a;
-    //        the_planet->e                 = e;
-    //        the_planet->mass             = mass;
-    //        the_planet->dust_mass         = dust_mass;
-    //        the_planet->gas_mass         = gas_mass;
-    //        the_planet->atmosphere         = NULL;
-    //        the_planet->first_moon         = NULL;
-    //        the_planet->atmosphere        = NULL;
-    //        the_planet->albedo            = 0;
-    //        the_planet->gases            = 0;
-    //        the_planet->surf_temp        = 0;
-    //        the_planet->high_temp        = 0;
-    //        the_planet->low_temp        = 0;
-    //        the_planet->max_temp        = 0;
-    //        the_planet->min_temp        = 0;
-    //        the_planet->greenhs_rise    = 0;
-    //        the_planet->minor_moons     = 0;
-    //
-    //        if ((mass >= crit_mass))
-    //            the_planet->gas_giant = TRUE;
-    //        else
-    //            the_planet->gas_giant = FALSE;
-    //
-    //        if ((planet_head == NULL))
-    //        {
-    //            planet_head = the_planet;
-    //            the_planet->next_planet = NULL;
-    //        }
-    //        else if ((a < planet_head->a))
-    //        {
-    //            the_planet->next_planet = planet_head;
-    //            planet_head = the_planet;
-    //        }
-    //        else if ((planet_head->next_planet == NULL))
-    //        {
-    //            planet_head->next_planet = the_planet;
-    //            the_planet->next_planet = NULL;
-    //        }
-    //        else
-    //        {
-    //            next_planet = planet_head;
-    //            while (((next_planet != NULL) && (next_planet->a < a)))
-    //            {
-    //                prev_planet = next_planet;
-    //                next_planet = next_planet->next_planet;
-    //            }
-    //            the_planet->next_planet = next_planet;
-    //            prev_planet->next_planet = the_planet;
-    //        }
-    //    }
-    //}
-    
+
     public func currentState() -> AccretionState {
         var current_dust_lanes: [Dust] = []
         var current_planets: [Planet] = []
@@ -1109,45 +614,43 @@ public struct AccretionDisk {
         }
         return AccretionState(dustlanes: current_dust_lanes, planets: current_planets, dust_left: dust_left)
     }
-    
+
     public mutating func advance() {
-        var a: Double // distance, in AU
-        var e: Double // eccentricity of orbit
-        var mass: Double = PROTOPLANET_MASS // units of Solar Mass
-        var dust_mass: Double = 0
-        var gas_mass: Double = 0
-        var crit_mass: Double = 0
-        
+        let a: Double // distance, in AU
+        let e: Double // eccentricity of orbit
+        let seed_dg = DustAndGas(dust: PROTOPLANET_MASS, gas: 0)
+
         // The general flow is to seed planetesimals that start gravitational accretion
         // (called 'gravitational instability' in current (~2020) astrophysics research)
         // and continue to deploy "seeds" until the dust of the disk is "consumed".
-        if(dust_left) {
+        if dust_left {
             if let definitely_seed = current_seed {
                 a = definitely_seed.a
                 e = definitely_seed.e
                 current_seed = definitely_seed.next_planet
             } else {
-                a = prng.random_number(in: planet_inner_bound...planet_outer_bound)
+                a = prng.random_number(in: planet_inner_bound ... planet_outer_bound)
                 e = prng.random_eccentricity()
             }
-            //print("Checking \(a.formatted(FPStyle)) AU")
+            // print("Checking \(a.formatted(FPStyle)) AU")
             msgs.send("Checking \(a.formatted(FPStyle)) AU")
 
-            if dust_available(inside_range: inner_effect_limit(a: a, e: e, mass: mass),
-                              outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
+            let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
+            if dust_available(accretion_effect_range) {
                 // print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
                 msgs.send("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
-                // n = 3, alpha = 5
-                
-                dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, (1.0 / N)))
+
+                // N = 3, ALPHA = 5
+                dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
+
                 // Determine the mass (in solar masses) at which a body will start accumulating gasses
-                crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
-                
-                accrete_dust(seed_mass: &mass, new_dust: &dust_mass, new_gas: &gas_mass, a: a, e: e, crit_mass: crit_mass, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound)
-                dust_mass += PROTOPLANET_MASS
-                
-                if mass > PROTOPLANET_MASS {
-                    coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stellar_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
+                let crit_mass = AccretionDisk.critical_limit(orbital_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
+
+                let planetesimal = accrete_dust(seed_mass: seed_dg, a: a, e: e, crit_mass: crit_mass, dust_density: dust_density)
+
+                if planetesimal.mass > PROTOPLANET_MASS {
+                    let updated_planets = coalesce_planetesimals(planetesimal: planetesimal, a: a, e: e, crit_mass: crit_mass, do_moons: do_moons)
+                    planets = updated_planets.sorted()
                 } else {
                     msgs.send("Insufficient mass additional from accretion.")
                 }
@@ -1165,59 +668,54 @@ public struct AccretionDisk {
 //            }
         }
     }
-    
+
     // primary entry point? - called from SolarSystem
     mutating func dist_planetary_masses() -> Planet? {
-        var a: Double // distance, in AU
-        var e: Double // eccentricity of orbit
-        var mass: Double = PROTOPLANET_MASS // units of Solar Mass
-        var dust_mass: Double = 0
-        var gas_mass: Double = 0
-        var crit_mass: Double = 0
-        
+        let seed_dg = DustAndGas(dust: PROTOPLANET_MASS, gas: 0)
+
         // The general flow is to seed planetesimals that start gravitational accretion
         // (called 'gravitational instability' in current (~2020) astrophysics research)
         // and continue to deploy "seeds" until the dust of the disk is "consumed".
-        while(dust_left) {
-            
+        while dust_left {
+            let a: Double // distance, in AU
+            let e: Double // eccentricity of orbit
+
             print("DUST STATUS")
             updater.send(currentState())
-            
+
             if let definitely_seed = current_seed {
                 a = definitely_seed.a
                 e = definitely_seed.e
                 current_seed = definitely_seed.next_planet
             } else {
-                a = prng.random_number(in: planet_inner_bound...planet_outer_bound)
+                a = prng.random_number(in: planet_inner_bound ... planet_outer_bound)
                 e = prng.random_eccentricity()
             }
 
             print("Checking \(a.formatted(FPStyle)) AU")
-
-            if dust_available(inside_range: inner_effect_limit(a: a, e: e, mass: mass),
-                              outside_range: outer_effect_limit(a: a, e: e, mass: mass)) {
+            let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
+            if dust_available(accretion_effect_range) {
                 print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
-                
+
                 // NOTE(heckj): this is used in collect_dust, which is called from inside accrete_dust - and doesn't
                 // appear to be changing, so this calculation likely doesn't need to be within the loop
                 // and could be part of setting up initial conditions.
-                dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, (1.0 / N)))
-                
-                // Determine the mass (in solar masses) at which a body will start accumulating gasses
-                crit_mass = critical_limit(orb_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
-                
-                accrete_dust(seed_mass: &mass, new_dust: &dust_mass, new_gas: &gas_mass, a: a, e: e, crit_mass: crit_mass, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound)
-                dust_mass += PROTOPLANET_MASS
-                
-                if mass > PROTOPLANET_MASS {
-                    coalesce_planetesimals(a: a, e: e, mass: mass, crit_mass: crit_mass, dust_mass: dust_mass, gas_mass: gas_mass, stell_luminosity_ratio: stellar_luminosity_ratio, body_inner_bound: planet_inner_bound, body_outer_bound: planet_outer_bound, do_moons: do_moons)
-                } else {
-                    print("failed..")
-                }
+                dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
 
+                // Determine the mass (in solar masses) at which a body will start accumulating gasses
+                let crit_mass = AccretionDisk.critical_limit(orbital_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
+
+                let planetesimal = accrete_dust(seed_mass: seed_dg, a: a, e: e, crit_mass: crit_mass, dust_density: dust_density)
+
+                if planetesimal.mass > PROTOPLANET_MASS {
+                    let updated_planets = coalesce_planetesimals(planetesimal: planetesimal, a: a, e: e, crit_mass: crit_mass, do_moons: do_moons)
+                    planets = updated_planets.sorted()
+                } else {
+                    msgs.send("Insufficient mass additional from accretion.")
+                }
             }
         }
-        
+
         let final_state = currentState()
         print("DUST CONSUMED")
         for dust in final_state.dustlanes {
@@ -1225,173 +723,8 @@ public struct AccretionDisk {
             print("  \(dust_symbols) \(dust.inner_edge.formatted(FPStyle)) - \(dust.outer_edge.formatted(FPStyle))")
         }
         for planet in final_state.planets {
-            print(" \(planet.a.formatted(FPStyle)) AU : \(planet.id) \( (planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
+            print(" \(planet.a.formatted(FPStyle)) AU : \(planet.id) \((planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
         }
-        return(planet_head)
+        return (planet_head)
     }
-    
-    //planet_pointer dist_planetary_masses(long double stell_mass_ratio,
-    //                                     long double stell_luminosity_ratio,
-    //                                     long double inner_dust,
-    //                                     long double outer_dust,
-    //                                     long double outer_planet_limit,
-    //                                     long double dust_density_coeff,
-    //                                     planet_pointer seed_system,
-    //                                     int         do_moons)
-    //{
-    //    long double     a;
-    //    long double     e;
-    //    long double     mass;
-    //    long double        dust_mass;
-    //    long double        gas_mass;
-    //    long double     crit_mass;
-    //    long double     planet_inner_bound;
-    //    long double     planet_outer_bound;
-    //    planet_pointer     seeds = seed_system;
-    //
-    //    set_initial_conditions(inner_dust,outer_dust);
-    //    planet_inner_bound = nearest_planet(stell_mass_ratio);
-    //
-    //    if (outer_planet_limit == 0)
-    //        planet_outer_bound = farthest_planet(stell_mass_ratio);
-    //    else
-    //        planet_outer_bound = outer_planet_limit;
-    //
-    //    while (dust_left)
-    //    {
-    //        if (seeds != NULL)
-    //        {
-    //            a = seeds->a;
-    //            e = seeds->e;
-    //            seeds = seeds->next_planet;
-    //        }
-    //        else
-    //        {
-    //            a = random_number(planet_inner_bound,planet_outer_bound);
-    //            e = random_eccentricity( );
-    //        }
-    //
-    //        mass      = PROTOPLANET_MASS;
-    //        dust_mass = 0;
-    //        gas_mass  = 0;
-    //
-    //        if (flag_verbose & 0x0200)
-    //            fprintf (stderr, "Checking %Lg AU.\n",a);
-    //
-    //        if (dust_available(inner_effect_limit(a, e, mass),
-    //                           outer_effect_limit(a, e, mass)))
-    //        {
-    //            if (flag_verbose & 0x0100)
-    //                fprintf (stderr, "Injecting protoplanet at %Lg AU.\n", a);
-    //
-    //            dust_density = dust_density_coeff * sqrt(stell_mass_ratio)
-    //                           * exp(-ALPHA * pow(a,(1.0 / N)));
-    //            crit_mass = critical_limit(a,e,stell_luminosity_ratio);
-    //            accrete_dust(&mass, &dust_mass, &gas_mass,
-    //                         a,e,crit_mass,
-    //                         planet_inner_bound,
-    //                         planet_outer_bound);
-    //
-    //            dust_mass += PROTOPLANET_MASS;
-    //
-    //            if (mass > PROTOPLANET_MASS)
-    //                coalesce_planetesimals(a,e,mass,crit_mass,
-    //                                       dust_mass, gas_mass,
-    //                                       stell_luminosity_ratio,
-    //                                       planet_inner_bound,planet_outer_bound,
-    //                                       do_moons);
-    //            else if (flag_verbose & 0x0100)
-    //                fprintf (stderr, ".. failed due to large neighbor.\n");
-    //        }
-    //        else if (flag_verbose & 0x0200)
-    //            fprintf (stderr, ".. failed.\n");
-    //    }
-    //    return(planet_head);
-    //}
-
 }
-
-//
-//void free_dust (dust_pointer head)
-//{
-//    dust_pointer    node;
-//    dust_pointer    next;
-//
-//    for(node = head;
-//        node != NULL;
-//        node = next)
-//    {
-//        next = node->next_band;
-//        free (node);
-//    }
-//
-//}
-//
-//void free_planet (planet_pointer head)
-//{
-//    planet_pointer    node;
-//    planet_pointer    next;
-//
-//    for(node = head;
-//        node != NULL;
-//        node = next)
-//    {
-//        next = node->next_planet;
-//
-//        free (node);
-//    }
-//}
-//
-//void free_generations()
-//{
-//    gen_pointer    node;
-//    gen_pointer    next;
-//
-//    for(node = hist_head;
-//        node != NULL;
-//        node = next)
-//    {
-//        next = node->next;
-//
-//        if (node->dusts)
-//            free_dust (node->dusts);
-//
-//        if (node->planets)
-//            free_planet (node->planets);
-//
-//        free (node);
-//    }
-//
-//    if (dust_head != NULL)
-//        free_dust (dust_head);
-//
-//    if (planet_head != NULL)
-//        free_planet (planet_head);
-//
-//    dust_head = NULL;
-//    planet_head = NULL;
-//    hist_head = NULL;
-//}
-//
-//void free_atmosphere(planet_pointer head)
-//{
-//    planet_pointer    node;
-//
-//    for (node = head;
-//         node != NULL;
-//         node = node->next_planet)
-//    {
-//        if (node->atmosphere != NULL)
-//        {
-//            free(node->atmosphere);
-//
-//            node->atmosphere = NULL;
-//        }
-//
-//        if (node->first_moon != NULL)
-//        {
-//            free_atmosphere(node->first_moon);
-//        }
-//    }
-//}
-

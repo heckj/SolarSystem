@@ -12,7 +12,7 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
     print("                          SYSTEM  CHARACTERISTICS")
     print("Stellar mass: \(sun.mass.formatted(FPStyle)) solar masses")
     print("Stellar luminosity: \(sun.luminosity.formatted(FPStyle))")
-    print("Age: \( (sun.age / 1.0e9).formatted(FPStyle) ) billion years (\( ((sun.life - sun.age) / 1.0e9).formatted(FPStyle)) billion left on main sequence)")
+    print("Age: \((sun.age / 1.0e9).formatted(FPStyle)) billion years (\(((sun.life - sun.age) / 1.0e9).formatted(FPStyle)) billion left on main sequence)")
     print("Habitable ecosphere radius: \(sun.r_ecosphere.formatted(FPStyle)) AU")
     print()
     print("Planets present at:")
@@ -31,7 +31,7 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
         } else {
             textSymbol = "."
         }
-        print("\(counter)\t\(Aplanet.a.formatted(FPStyle)) AU\t\( (Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM\t\(textSymbol)\n")
+        print("\(counter)\t\(Aplanet.a.formatted(FPStyle)) AU\t\((Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM\t\(textSymbol)\n")
         counter += 1
         planet = planet?.next_planet
     }
@@ -49,19 +49,19 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
             print("Planet's rotation is in a resonant spin lock with the star")
         }
         print("   Distance from primary star:\t\(Aplanet.a.formatted(FPStyle))\tAU")
-        print("   Mass:\t\t\t\( (Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle) )\tEarth masses")
+        print("   Mass:\t\t\t\((Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle))\tEarth masses")
         if !(Aplanet.gas_giant) {
             print("   Surface gravity:\t\t\(Aplanet.surf_grav.formatted(FPStyle))\tEarth Gs")
-            print("   Surface pressure:\t\t\( (Aplanet.surf_pressure / 1000.0).formatted(FPStyle) )\tEarth atmospheres")
+            print("   Surface pressure:\t\t\((Aplanet.surf_pressure / 1000.0).formatted(FPStyle))\tEarth atmospheres")
             if Aplanet.greenhouse_effect, Aplanet.surf_pressure > 0.0 {
                 print("\tGREENHOUSE EFFECT")
             }
-            print("   Surface temperature:\t\t\( (Aplanet.surf_temp - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius\n")
+            print("   Surface temperature:\t\t\((Aplanet.surf_temp - FREEZING_POINT_OF_WATER).formatted(FPStyle))\tdegrees Celcius\n")
         }
         print("   Equatorial radius:\t\t\(Aplanet.radius.formatted(FPStyle))\tKm")
         print("   Density:\t\t\t\(Aplanet.density.formatted(FPStyle))\tgrams/cc")
         print("   Eccentricity of orbit:\t\(Aplanet.e.formatted(FPStyle))")
-        print("   Escape Velocity:\t\t\( (Aplanet.esc_velocity / CM_PER_KM).formatted(FPStyle) )\tKm/sec")
+        print("   Escape Velocity:\t\t\((Aplanet.esc_velocity / CM_PER_KM).formatted(FPStyle))\tKm/sec")
         print("   Molecular weight retained:\t\(Aplanet.molec_weight.formatted(FPStyle)) and above")
         print("   Surface acceleration:\t\(Aplanet.surf_accel.formatted(FPStyle))\tcm/sec2")
         print("   Axial tilt:\t\t\t\(Aplanet.axial_tilt.formatted(FPStyle))\tdegrees")
@@ -69,10 +69,10 @@ func text_describe_system(sun: Sun, innermost_planet: Planet?, do_gases: Bool, s
         print("   Length of year:\t\t\(Aplanet.orb_period.formatted(FPStyle))\tdays")
         print("   Length of day:\t\t\(Aplanet.day.formatted(FPStyle))\thours")
         if !(Aplanet.gas_giant) {
-            print("   Boiling point of water:\t\( (Aplanet.boil_point - FREEZING_POINT_OF_WATER).formatted(FPStyle) )\tdegrees Celcius")
-            print("   Hydrosphere percentage:\t\( (Aplanet.hydrosphere * 100.0).formatted(FPStyle))")
-            print("   Cloud cover percentage:\t\( (Aplanet.cloud_cover * 100).formatted(FPStyle))")
-            print("   Ice cover percentage:\t\( (Aplanet.ice_cover * 100).formatted(FPStyle) )")
+            print("   Boiling point of water:\t\((Aplanet.boil_point - FREEZING_POINT_OF_WATER).formatted(FPStyle))\tdegrees Celcius")
+            print("   Hydrosphere percentage:\t\((Aplanet.hydrosphere * 100.0).formatted(FPStyle))")
+            print("   Cloud cover percentage:\t\((Aplanet.cloud_cover * 100).formatted(FPStyle))")
+            print("   Ice cover percentage:\t\((Aplanet.ice_cover * 100).formatted(FPStyle))")
         }
         print()
 

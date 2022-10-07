@@ -5,13 +5,12 @@
 //  Created by Joseph Heck on 10/4/22.
 //
 
-import SwiftUI
 import SolarSystem
-
+import SwiftUI
 
 struct AccretionView: View {
-    func dustSymbol(_ d:Dust) -> String {
-        if d.dust_present && d.gas_present {
+    func dustSymbol(_ d: Dust) -> String {
+        if d.dust_present, d.gas_present {
             return "*"
         } else if d.dust_present {
             return "+"
@@ -21,12 +20,12 @@ struct AccretionView: View {
             return "_"
         }
     }
-    
-    let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0...3))
-    
+
+    let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
+
     @ObservedObject var accretionDisk: AccretionModel
     @State private var msgStrings: [String] = []
-    
+
     var body: some View {
         VStack {
             Text("\(accretionDisk.solar_masses) \u{2609} Solar Masses")
@@ -49,9 +48,9 @@ struct AccretionView: View {
             msgStrings.append(msgStr)
         }
     }
-    
+
     init(model: AccretionModel) {
-        self.accretionDisk = model
+        accretionDisk = model
     }
 }
 

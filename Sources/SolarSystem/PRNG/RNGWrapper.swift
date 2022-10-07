@@ -67,16 +67,15 @@ public final class RNGWrapper<PRNG> where PRNG: SeededRandomNumberGenerator {
         #if DEBUG
             _invokeCount += 1
         #endif
-        let adjustment = Double.random(in: -variation...variation, using: &_prng)
+        let adjustment = Double.random(in: -variation ... variation, using: &_prng)
         return value + adjustment
     }
 
     func random_eccentricity() -> Double {
-        let e = 1.0 - pow(random_number(in: 0.0...1.0), ECCENTRICITY_COEFF);
+        let e = 1.0 - pow(random_number(in: 0.0 ... 1.0), ECCENTRICITY_COEFF)
         if e > 0.99 {
             return 0.99
         }
         return e
     }
-    
 }

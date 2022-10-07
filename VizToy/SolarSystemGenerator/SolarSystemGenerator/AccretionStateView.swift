@@ -5,13 +5,13 @@
 //  Created by Joseph Heck on 10/5/22.
 //
 
-import SwiftUI
 import SolarSystem
+import SwiftUI
 import SwiftVizScale
 
 struct AccretionStateView: View {
-    func dustSymbol(_ d:Dust) -> String {
-        if d.dust_present && d.gas_present {
+    func dustSymbol(_ d: Dust) -> String {
+        if d.dust_present, d.gas_present {
             return "*"
         } else if d.dust_present {
             return "+"
@@ -21,8 +21,9 @@ struct AccretionStateView: View {
             return "_"
         }
     }
-    func dustColor(_ d:Dust) -> Color {
-        if d.dust_present && d.gas_present {
+
+    func dustColor(_ d: Dust) -> Color {
+        if d.dust_present, d.gas_present {
             return .brown.opacity(0.5)
         } else if d.dust_present {
             return .red.opacity(0.5)
@@ -32,13 +33,13 @@ struct AccretionStateView: View {
             return .clear
         }
     }
-    
-    let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0...3))
+
+    let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
 
     let accretionState: AccretionState
     let scale: SwiftVizScale.ContinuousScale<CGFloat>
     let planetScale: SwiftVizScale.ContinuousScale<CGFloat>
-    
+
     var body: some View {
         VStack {
             ForEach(accretionState.dustlanes, id: \.inner_edge) { dustlane in
@@ -48,30 +49,30 @@ struct AccretionStateView: View {
             Canvas { ctx, size in
 //                ctx.draw(Text("\(size.height) \(size.width)"), in: CGRect(origin: .zero, size: size))
 //
-                let y = size.height/2
+                let y = size.height / 2
                 let insetWidth = size.width * 0.9
                 let leftInsetMargin = size.width * 0.05
                 let right = leftInsetMargin + insetWidth
-                //ctx.draw(Text("\(leftInsetMargin) \(right)"), in: CGRect(origin: .zero, size: size))
-                
+                // ctx.draw(Text("\(leftInsetMargin) \(right)"), in: CGRect(origin: .zero, size: size))
+
                 for d in accretionState.dustlanes {
 //                    let basePath = Path { p in
 //                        p.move(to: CGPoint(x: d.inner_edge, y: y))
 //                        p.addLine(to: CGPoint(x: d.outer_edge, y: y))
 //                    }
 //                    ctx.stroke(basePath, with: .color(dustColor(d)))
-                    
+
                     let dPath = Path { p in
                         p.move(to: CGPoint(x: scale.scale(d.inner_edge, from: leftInsetMargin, to: right) ?? 0, y: y))
                         p.addLine(to: CGPoint(x: scale.scale(d.outer_edge, from: leftInsetMargin, to: right) ?? 10, y: y))
                     }
-                    ctx.stroke(dPath, with: GraphicsContext.Shading.color(dustColor(d)), lineWidth: size.height/9.0)
+                    ctx.stroke(dPath, with: GraphicsContext.Shading.color(dustColor(d)), lineWidth: size.height / 9.0)
                 }
                 for plnt in accretionState.planets {
                     let planetCircle = Path { p in
                         let xy: CGFloat = planetScale.scale(plnt.mass) ?? 1.0
                         if let xValue = scale.scale(plnt.a, from: leftInsetMargin, to: right) {
-                            p.addEllipse(in: CGRect(x: xValue - xy/2.0, y: y-xy/2.0, width: xy, height: xy))
+                            p.addEllipse(in: CGRect(x: xValue - xy / 2.0, y: y - xy / 2.0, width: xy, height: xy))
                         }
                     }
                     ctx.stroke(planetCircle, with: .color(.blue))
@@ -79,7 +80,7 @@ struct AccretionStateView: View {
             }.frame(height: 50)
         }
     }
-    
+
     public init(accretionState: AccretionState) {
         self.accretionState = accretionState
 //        let min: Double = accretionState.dustlanes.reduce(into: 0.01) { partialResult, dustlane in
@@ -106,7 +107,7 @@ struct AccretionStateView_Previews: PreviewProvider {
     static var previews: some View {
         AccretionStateView(accretionState: AccretionState.example)
             .frame(width: 300, height: 500)
-        
+
         AccretionStateView(accretionState: AccretionDisk(prng: RNGWrapper(Xoshiro(seed: 23)), inner_limit_of_dust: 0.0, outer_limit_of_dust: 0.0, stellar_mass_ratio: 1.1, stellar_luminosity_ratio: luminosity(mass_ratio: 1.1)).currentState())
             .frame(width: 300, height: 500)
     }

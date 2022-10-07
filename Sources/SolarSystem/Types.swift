@@ -95,6 +95,10 @@ public final class Planet: Equatable {
 
     var id: UUID = .init()
 
+    var reduced_mass: Double {
+        pow(mass / (1.0 + mass), 1.0 / 4.0)
+    }
+
     public var planet_no: Int
     public var a: Double /* semi-major axis of solar orbit (in AU)*/
     public var e: Double /* eccentricity of solar orbit         */
@@ -143,6 +147,8 @@ public final class Planet: Equatable {
     public var first_moon: Planet?
     public var next_planet: Planet?
 
+    public var moons: [Planet] = []
+
     public init(planet_no: Int, a: Double, e: Double, axial_tilt: Double, mass: Double, gas_giant: Bool, dust_mass: Double, gas_mass: Double, first_moon: Planet? = nil, next_planet: Planet?) {
         self.planet_no = planet_no
         self.a = a
@@ -154,6 +160,12 @@ public final class Planet: Equatable {
         self.gas_mass = gas_mass
         self.first_moon = first_moon
         self.next_planet = next_planet
+    }
+}
+
+extension Planet: Comparable {
+    public static func < (lhs: Planet, rhs: Planet) -> Bool {
+        lhs.a < rhs.a
     }
 }
 
@@ -216,6 +228,7 @@ public final class Dust {
     public var outer_edge: Double
     public var dust_present: Bool
     public var gas_present: Bool
+    public let range: ClosedRange<Double>
     var next_band: Dust?
 
     init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band: Dust?) {
@@ -224,6 +237,7 @@ public final class Dust {
         self.dust_present = dust_present
         self.gas_present = gas_present
         self.next_band = next_band
+        range = inner_edge ... outer_edge
     }
 }
 
