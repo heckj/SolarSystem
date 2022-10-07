@@ -73,8 +73,8 @@ public struct AccretionDisk {
     var dust_lanes: [Dust]
     var planets: [Planet]
 
-    var dust_head: Dust?
-    var planet_head: Planet?
+//    var dust_head: Dust?
+//    var planet_head: Planet?
     var do_moons: Bool
 
     var current_seed: Planet?
@@ -108,7 +108,7 @@ public struct AccretionDisk {
                 outer_edge: outer_limit_of_dust,
                 dust_present: true, gas_present: true, next_band: nil
             )
-            dust_head = initialDustLane
+//            dust_head = initialDustLane
             dust_lanes = [initialDustLane]
         } else {
             let initialDustLane = Dust(
@@ -116,12 +116,12 @@ public struct AccretionDisk {
                 outer_edge: AccretionDisk.stellar_dust_limit(stellar_mass: stellar_mass_ratio),
                 dust_present: true, gas_present: true, next_band: nil
             )
-            dust_head = initialDustLane
+//            dust_head = initialDustLane
             dust_lanes = [initialDustLane]
         }
         // initial planets
         planets = []
-        planet_head = nil
+//        planet_head = nil
 
         // Combine publishers to send updates about accretion status
         updater = PassthroughSubject<AccretionState, Never>()
@@ -600,20 +600,8 @@ public struct AccretionDisk {
     }
 
     public func currentState() -> AccretionState {
-        var current_dust_lanes: [Dust] = []
-        var current_planets: [Planet] = []
-
-        if let firstDustLane = dust_head {
-            for dust_lane in sequence(first: firstDustLane, next: \.next_band) {
-                current_dust_lanes.append(dust_lane)
-            }
-        }
-
-        if let firstPlanet = planet_head {
-            for some_planet in sequence(first: firstPlanet, next: \.next_planet) {
-                current_planets.append(some_planet)
-            }
-        }
+        let current_dust_lanes: [Dust] = dust_lanes
+        let current_planets: [Planet] = planets
         return AccretionState(dustlanes: current_dust_lanes, planets: current_planets, dust_left: dust_left)
     }
 
@@ -672,7 +660,7 @@ public struct AccretionDisk {
     }
 
     // primary entry point? - called from SolarSystem
-    mutating func dist_planetary_masses() -> Planet? {
+    mutating func dist_planetary_masses() -> [Planet] {
         let seed_dg = DustAndGas(dust: PROTOPLANET_MASS, gas: 0)
 
         // The general flow is to seed planetesimals that start gravitational accretion
@@ -724,6 +712,6 @@ public struct AccretionDisk {
         for planet in final_state.planets {
             print(" \(planet.a.formatted(FPStyle)) AU : \(planet.id) \((planet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM")
         }
-        return (planet_head)
+        return planets
     }
 }
