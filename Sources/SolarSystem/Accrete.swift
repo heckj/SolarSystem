@@ -469,7 +469,7 @@ public struct AccretionDisk {
 
     mutating func collide(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double) -> (Planet) {
         let crit_mass = AccretionDisk.critical_limit(orbital_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
-        
+
         print("Collision between planet and planetesimal! \(planet.a) AU (\(planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(planetesimal.mass * SUN_MASS_IN_EARTH_MASSES)EM = \(planetesimal.dust * SUN_MASS_IN_EARTH_MASSES)EMd + \(planetesimal.gas * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(a) AU (\(e))")
 
         let combined = DustAndGas(dust: planet.dust_mass + planetesimal.dust, gas: planet.gas_mass + planetesimal.gas)
@@ -698,7 +698,6 @@ public struct AccretionDisk {
             let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
             if dust_available(accretion_effect_range) {
                 print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
-
 
                 dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
 
