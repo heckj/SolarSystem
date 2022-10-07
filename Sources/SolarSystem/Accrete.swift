@@ -467,7 +467,9 @@ public struct AccretionDisk {
         return (false, planet)
     }
 
-    mutating func collide(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double, crit_mass: Double) -> (Planet) {
+    mutating func collide(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double) -> (Planet) {
+        let crit_mass = AccretionDisk.critical_limit(orbital_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
+        
         print("Collision between planet and planetesimal! \(planet.a) AU (\(planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(planetesimal.mass * SUN_MASS_IN_EARTH_MASSES)EM = \(planetesimal.dust * SUN_MASS_IN_EARTH_MASSES)EMd + \(planetesimal.gas * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(a) AU (\(e))")
 
         let combined = DustAndGas(dust: planet.dust_mass + planetesimal.dust, gas: planet.gas_mass + planetesimal.gas)
@@ -528,7 +530,7 @@ public struct AccretionDisk {
                     if !finished {
                         // collide previous planet and planetesimal
                         // collide has the side effect of potential additional accretion, and updating the dust lanes
-                        _ = collide(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        _ = collide(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e)
                         finished = true
                     }
                 }
@@ -564,7 +566,7 @@ public struct AccretionDisk {
                     if !finished {
                         // collide next planet and planetesimal
                         // collide has the side effect of potential additional accretion, and updating the dust lanes
-                        _ = collide(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        _ = collide(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e)
                         finished = true
                     }
                 }
@@ -697,9 +699,7 @@ public struct AccretionDisk {
             if dust_available(accretion_effect_range) {
                 print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
 
-                // NOTE(heckj): this is used in collect_dust, which is called from inside accrete_dust - and doesn't
-                // appear to be changing, so this calculation likely doesn't need to be within the loop
-                // and could be part of setting up initial conditions.
+
                 dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
 
                 // Determine the mass (in solar masses) at which a body will start accumulating gasses
