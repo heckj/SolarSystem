@@ -15,16 +15,6 @@ import Foundation
 // NOTE(heckj): throughout this ported code, 'a' represents the AU distance from the core of the disk,
 // 'mass' is the accumulated mass at that AU, and 'e' represents the eccentricity of the mass being calculated.
 
-// NOTE(heckj): Porting Notes:
-// Accrete was a variety of free functions that manipulated a set of global variables.
-// I'm encapsulating those into a struct, which seems a bit awkward, but better than slapping
-// around global variables and pointers to me.
-// To support the linked-list data structures, I'm using reference types (classes) and passing them
-// around as need be in place of passing "pointers" in the original C code. This is NOT the most efficient
-// mechanism for Swift, and quite a lot could be refactored - I suspect most of what's happening in linked
-// lists could be replaced with Array structures and updates, especially capturing the the dust lanes and
-// collecting dust from them. The planet structure that accumulates ends up being a graph rather than a list
-// when you include `moons`, so that may well best sit as a linked-list structure.
 public struct AccretionState {
     public let dustlanes: [Dust]
     public let planets: [Planet]
@@ -48,10 +38,12 @@ public struct AccretionState {
     ], dust_left: false)
 }
 
-public struct AccretionDisk {
-    let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 4))
-    let tight: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
+//let massFormat: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 3))
+let massFormat: FloatingPointFormatStyle<Double> = .number.notation(.scientific)
+let AUFormat: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 2))
+let eFormat: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
 
+public struct AccretionDisk {
     var dust_left: Bool
     var cloud_eccentricity: Double
     var planet_inner_bound: Double
@@ -59,22 +51,17 @@ public struct AccretionDisk {
 
     var r_inner: Double = 0 // the inner radius of the computed band/width that a mass accumulates
     var r_outer: Double = 0 // the outer radius of the computed band/width that a mass accumulates
-    var reduced_mass: Double = 0 // a reduced mass computed during accretion to collect dust and gas
     var dust_density: Double = 0
 
     public var stellar_mass_ratio: Double // the mass of the star, in solar masses
     public var stellar_luminosity_ratio: Double // the luminosity of the star, comparable to sol
 
     var dust_density_coeff: Double
-    // NOTE(heckj): create a proper initializer to set this value, aligned somewhere between the initializer and calling
-    // dist_planetary_masses, which is the primarily call site into this...
     var prng: RNGWrapper<Xoshiro>
 
     var dust_lanes: [Dust]
     var planets: [Planet]
 
-//    var dust_head: Dust?
-//    var planet_head: Planet?
     var do_moons: Bool
 
     var current_seed: Planet?
@@ -136,6 +123,18 @@ public struct AccretionDisk {
         }
     }
 
+    static func orbital_range(a: Double, e: Double) -> String {
+        return "\((a*(1-e)).formatted(AUFormat))AU-\((a*(1+e)).formatted(AUFormat))AU"
+    }
+    static func orbital_range(a: Double, e: Double, dg: DustAndGas) -> String {
+        let basic = orbital_range(a: a, e: e)
+        return "\(basic) (reduced:\((a*(1-e)*(1-dg.reduced_mass)).formatted(AUFormat))AU-\((a*(1+e)*(1-dg.reduced_mass)).formatted(AUFormat))AU)"
+    }
+    static func orbital_range(a: Double, e: Double, p: Planet) -> String {
+        let basic = orbital_range(a: a, e: e)
+        return "\(basic) (reduced:\((a*(1-e)*(1-p.reduced_mass)).formatted(AUFormat))AU-\((a*(1+e)*(1-p.reduced_mass)).formatted(AUFormat))AU)"
+    }
+
     /// The outer limit, in AU, of a planetary dust cloud for a star.
     /// - Parameter stellar_mass: The mass of the star, in solar masses
     /// - Returns: The distance, in AU, of the outermost range of dust for planetary accretion.
@@ -173,10 +172,10 @@ public struct AccretionDisk {
     ///   - a: The distance of the planetesimal mass from the star, in AU.
     ///   - e: The eccentricity of the orbit of the planetesimal mass.
     ///   - mass: The mass of the planetesimal.
-    static func inner_effect_limit(a: Double, e: Double, mass: Double, cloud_eccentricity: Double) -> Double {
+    static func inner_effect_limit(a: Double, e: Double, reduced_mass: Double, cloud_eccentricity: Double) -> Double {
         // Given an orbital distance, mass, and eccentricity, calculates the
         // inner-most distance (in AU) that the orbit "sweeps up" dust.
-        let minAU = a * (1.0 - e) * (1.0 - mass) / (1.0 + cloud_eccentricity)
+        let minAU = a * (1.0 - e) * (1.0 - reduced_mass) / (1.0 + cloud_eccentricity)
         // clamp minimum value to 0 AU
         return minAU < 0.0 ? 0 : minAU
     }
@@ -186,10 +185,10 @@ public struct AccretionDisk {
     ///   - a: The distance of the planetesimal mass from the star, in AU.
     ///   - e: The eccentricity of the orbit of the planetesimal mass.
     ///   - mass: The mass of the planetesimal.
-    static func outer_effect_limit(a: Double, e: Double, mass: Double, cloud_eccentricity: Double) -> Double {
+    static func outer_effect_limit(a: Double, e: Double, reduced_mass: Double, cloud_eccentricity: Double) -> Double {
         // Given an orbital distance, mass, and eccentricity, calculates the
         // outer-most distance (in AU) that the orbit "sweeps up" dust.
-        a * (1.0 + e) * (1.0 + mass) / (1.0 - cloud_eccentricity)
+        a * (1.0 + e) * (1.0 - reduced_mass) / (1.0 - cloud_eccentricity)
     }
 
     /// Returns a Boolean value indicating if dust is available to accumulate within the given range.
@@ -202,7 +201,18 @@ public struct AccretionDisk {
             }
         }
     }
-
+    
+    /// Returns the hill radius for a larger mass to potentially gravitationally capture a smaller mass.
+    /// - Parameters:
+    ///   - bigmass: The mass of the larger orbital body
+    ///   - littlemass: The mass of the smaller orbital body
+    ///   - a: The orbital distance of the smaller body from the larger
+    ///   - e: The eccentricity of the smaller body's orbit
+    /// - Returns: The distance within which the smaller body will be gravitationally captured by the larger.
+    static func hill_radii(bigmass: Double, littlemass: Double, a: Double, e: Double) -> Double {
+        a * (1 - e) * pow(littlemass / (3.0 * bigmass), 1.0 / 3.0)
+    }
+    
     func updated_dust_lanes(accretion_effect_range: ClosedRange<Double>, mass: Double, crit_mass: Double) -> [Dust] {
         // called from `accrete_dust`
 
@@ -287,7 +297,9 @@ public struct AccretionDisk {
         func accretion_effect_range(a: Double, e: Double, cloud_eccentricity: Double) -> ClosedRange<Double> {
             // calculate the effect limits of dust collection based on a reduced mass
             let reduced_mass = pow(mass / (1.0 + mass), 1.0 / 4.0)
-            return AccretionDisk.inner_effect_limit(a: a, e: e, mass: reduced_mass, cloud_eccentricity: cloud_eccentricity) ... AccretionDisk.outer_effect_limit(a: a, e: e, mass: reduced_mass, cloud_eccentricity: cloud_eccentricity)
+            let inner_effect = AccretionDisk.inner_effect_limit(a: a, e: e, reduced_mass: reduced_mass, cloud_eccentricity: cloud_eccentricity)
+            let outer_effect = AccretionDisk.outer_effect_limit(a: a, e: e, reduced_mass: reduced_mass, cloud_eccentricity: cloud_eccentricity)
+            return inner_effect...outer_effect
         }
 
         var mass: Double {
@@ -295,6 +307,8 @@ public struct AccretionDisk {
         }
 
         var reduced_mass: Double {
+            // value of 'reduced mass' goes from 0 at 0 mass to 0.8 and 0.8 mass, asymptotically approaching 1
+            // by 8 --> 0.97
             pow(mass / (1.0 + mass), 1.0 / 4.0)
         }
 
@@ -363,10 +377,9 @@ public struct AccretionDisk {
             return DustAndGas(dust: 0, gas: 0)
         }
 
-        let accumulatedMass: DustAndGas = massByLane.reduce(into: DustAndGas(dust: 0, gas: 0)) { partialResult, dg in
+        let accumulatedMass: DustAndGas = massByLane.reduce(into: seed_dg) { partialResult, dg in
             partialResult = partialResult + dg
         }
-
         return accumulatedMass
     }
 
@@ -393,17 +406,19 @@ public struct AccretionDisk {
         var temp_mass = seed_mass
         var new_mass: DustAndGas = temp_mass
         var growth: Double = 0
+        print("   .. accretion start \(seed_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(AccretionDisk.orbital_range(a: a, e: e, dg: new_mass))")
         repeat {
             temp_mass = new_mass
             new_mass = collect_dust(mass: temp_mass.mass, critical_mass: crit_mass, a: a, e: e, dust_density: dust_density)
             growth = new_mass.mass - temp_mass.mass
         } while !(growth < (0.0001 * temp_mass.mass))
-
-        let grownMass = seed_mass + new_mass
+        print("   .. accretion finished \(new_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(AccretionDisk.orbital_range(a: a, e: e, dg: new_mass))")
+        let grownMass = new_mass
         let accretion_effect_range = grownMass.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
         // MUTATION PARTS BELOW
         dust_lanes = updated_dust_lanes(accretion_effect_range: accretion_effect_range, mass: grownMass.mass, crit_mass: crit_mass)
         dust_left = dust_available(planet_inner_bound ... planet_outer_bound)
+        print(" .. Accreted dust around \(seed_mass.mass.formatted(massFormat)) \u{2609} at \(AccretionDisk.orbital_range(a: a, e: e, dg: seed_mass)) --> \(grownMass.mass.formatted(massFormat)) \u{2609} at \(AccretionDisk.orbital_range(a: a, e: e, dg: grownMass))")
         return grownMass
     }
 
@@ -470,8 +485,7 @@ public struct AccretionDisk {
     mutating func collide(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double) -> (Planet) {
         let crit_mass = AccretionDisk.critical_limit(orbital_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
 
-        print("Collision between planet and planetesimal! \(planet.a) AU (\(planet.mass * SUN_MASS_IN_EARTH_MASSES)EM) + \(a) AU (\(planetesimal.mass * SUN_MASS_IN_EARTH_MASSES)EM = \(planetesimal.dust * SUN_MASS_IN_EARTH_MASSES)EMd + \(planetesimal.gas * SUN_MASS_IN_EARTH_MASSES)EMg [\(crit_mass * SUN_MASS_IN_EARTH_MASSES)EM]) -> \(a) AU (\(e))")
-
+        print("Collision between planet and planetesimal! \(AccretionDisk.orbital_range(a: planet.a, e: planet.e, p: planet)) AU (\(planet.mass.formatted(massFormat)) \u{2609}) with \(AccretionDisk.orbital_range(a: a, e: e, dg: planetesimal)) AU (\(planetesimal.mass.formatted(massFormat)) \u{2609})")
         let combined = DustAndGas(dust: planet.dust_mass + planetesimal.dust, gas: planet.gas_mass + planetesimal.gas)
 
         let local_dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
@@ -486,8 +500,34 @@ public struct AccretionDisk {
         if updated_mass.mass >= crit_mass {
             planet.gas_giant = true
         }
+        print("post-collision planet updated to \(planet.mass.formatted(massFormat)), now at \(planet.a.formatted(AUFormat)) (\(planet.e.formatted(eFormat)))")
+        print(" -- dust: \(planet.dust_mass.formatted(massFormat)) gas: \(planet.gas_mass.formatted(massFormat))")
+        print(" -- critical mass is \(crit_mass.formatted(massFormat)) [accreting gas = \(planet.gas_giant)]")
+              
+            
         return planet
     }
+
+//    diff = the_planet->a - a;
+//
+//    if ((diff > 0.0))
+//    {
+//        dist1 = (a * (1.0 + e) * (1.0 + reduced_mass)) - a;
+//        /* x aphelion     */
+//        reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
+//        dist2 = the_planet->a
+//            - (the_planet->a * (1.0 - the_planet->e) * (1.0 - reduced_mass));
+//    }
+//    else
+//    {
+//        dist1 = a - (a * (1.0 - e) * (1.0 - reduced_mass));
+//        /* x perihelion */
+//        reduced_mass = pow((the_planet->mass / (1.0 + the_planet->mass)),(1.0 / 4.0));
+//        dist2 = (the_planet->a * (1.0 + the_planet->e) * (1.0 + reduced_mass))
+//            - the_planet->a;
+//    }
+//
+//    if (((fabs(diff) <= fabs(dist1)) || (fabs(diff) <= fabs(dist2))))
 
     mutating func coalesce_planetesimals(planetesimal: DustAndGas, a: Double, e: Double, crit_mass: Double, do_moons: Bool) -> [Planet] {
         // Takes the provided planetesimal and iterates through, colliding or merging it into the list of existing planets
@@ -506,19 +546,32 @@ public struct AccretionDisk {
 
                 // prev planet calculations
 
-                // planetesimal orbit with extreme eccentricity
-                let max_dist_to_prev = (a * (1.0 + e) * (1.0 - planetesimal.reduced_mass))
+                // planetesimal orbit with extreme eccentricity - planetesimal's perihelion
+                // The closest in from it's orbit that the planetesimal "ranges"
+                let planetesimal_perihelion = (a * (1.0 - e) * (1.0 - planetesimal.reduced_mass))
 
-                /* previous planet's perihelion based on eccentricity */
-                let min_dist_to_prev = (previous_planet.a * (1.0 + previous_planet.e) * (1.0 + previous_planet.reduced_mass)) - previous_planet.a
-
+                /* previous planet's aphelion based on eccentricity */
+                // The farthest out from it's orbit that the previous planet "ranges"
+                let prevplanet_aphelion = previous_planet.a * (1.0 + previous_planet.e) * (1.0 - previous_planet.reduced_mass)
+                
                 let mean_dist_to_prev = a - previous_planet.a
 
                 // fabs(_) returns the absolute value of the provided floating point number
-                if fabs(mean_dist_to_prev) <= fabs(max_dist_to_prev) || fabs(mean_dist_to_prev) <= fabs(min_dist_to_prev) {
+                if fabs(mean_dist_to_prev) <= fabs(planetesimal_perihelion) || fabs(mean_dist_to_prev) <= fabs(prevplanet_aphelion) {
                     // collision with orbital flow of the previous planet
+                    
+                    print(" .. potential capture by previous planet:")
+                    print(" .. planet: \(AccretionDisk.orbital_range(a: previous_planet.a, e: previous_planet.e, p: previous_planet))")
+                    print(" ..   reducedMass: \(previous_planet.reduced_mass)")
+                    print(" .. tisimal: \(AccretionDisk.orbital_range(a: a, e: e, dg: planetesimal))")
+                    print(" ..   reducedMass: \(planetesimal.reduced_mass)")
+                    print("    mean distance to prev: \(mean_dist_to_prev)")
+                    print("    tismal perihelion: \(planetesimal_perihelion)")
+                    print("    prev aphelion: \(prevplanet_aphelion)")
 
                     let (new_a, new_e) = updated_orbit(planet: previous_planet, planetesimal: planetesimal, a: a, e: e)
+                    print("    tisimal's new a: \(new_a)")
+                    print("    tisimal's new e: \(new_e)")
                     // NOW DO SOMETHING WITH THE NEW a and e values
                     if do_moons {
                         let (captured, _) = attempted_moon_capture(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
@@ -544,16 +597,29 @@ public struct AccretionDisk {
                 // next planet calculations
                 let mean_dist_to_next = planet_with_overlaping_orbit.a - a
 
-                // planetesimals' maximum orbital swing with eccentricity
-                let max_dist_to_next = (a * (1.0 + e) * (1.0 - planetesimal.reduced_mass))
+                // planetesimals' maximum orbital swing (aphelion) with eccentricity
+                let planetesimal_aphelion = a * (1.0 + e) * (1.0 - planetesimal.reduced_mass)
 
-                /* next planets aphelion based on eccentricity */
-                let min_dist_to_next = planet_with_overlaping_orbit.a - (planet_with_overlaping_orbit.a * (1.0 - planet_with_overlaping_orbit.e) * (1.0 - planet_with_overlaping_orbit.reduced_mass))
+                // next planets perihelion based on eccentricity - closest it ranges towards the start
+                let next_perihelion = planet_with_overlaping_orbit.a * (1.0 + planet_with_overlaping_orbit.e) * (1.0 - planet_with_overlaping_orbit.reduced_mass)
 
                 // fabs(_) returns the absolute value of the provided floating point number
-                if fabs(mean_dist_to_next) <= fabs(max_dist_to_next) || fabs(mean_dist_to_next) <= fabs(min_dist_to_next) {
+                if fabs(mean_dist_to_next) <= fabs(next_perihelion) || fabs(mean_dist_to_next) <= fabs(planetesimal_aphelion) {
                     // collision with orbital flow of the next planet
+                    
+                    print(" .. potential capture by next planet:")
+                    print(" .. planet: \(planet_with_overlaping_orbit.a*(1-planet_with_overlaping_orbit.e)) - \(planet_with_overlaping_orbit.a) - \(planet_with_overlaping_orbit.a*(1+planet_with_overlaping_orbit.e))")
+                    print(" ..   reducedMass: \(planet_with_overlaping_orbit.reduced_mass)")
+                    print(" .. tisimal: \(a*(1-e)) - \(a) - \(a*(1+e))")
+                    print(" ..   reducedMass: \(planetesimal.reduced_mass)")
+                    print("    mean distance to next: \(mean_dist_to_next)")
+                    print("    tisimal aphelion: \(planetesimal_aphelion)")
+                    print("    next perihelion: \(next_perihelion)")
+
                     let (new_a, new_e) = updated_orbit(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: a, e: e)
+                    print("    tisimal's new a: \(new_a)")
+                    print("    tisimal's new e: \(new_e)")
+
                     // NOW DO SOMETHING WITH THE NEW a and e values
 
                     if do_moons {
@@ -623,12 +689,12 @@ public struct AccretionDisk {
                 e = prng.random_eccentricity()
             }
             // print("Checking \(a.formatted(FPStyle)) AU")
-            msgs.send("Checking \(a.formatted(FPStyle)) AU")
+            msgs.send("Checking \(a.formatted(AUFormat)) AU (\(e.formatted(eFormat)))")
 
             let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
             if dust_available(accretion_effect_range) {
                 // print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
-                msgs.send("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
+                msgs.send("Injecting protoplanet at \(AccretionDisk.orbital_range(a: a, e: e, dg: seed_dg)) \(seed_dg.mass.formatted(massFormat)) \u{2609}")
 
                 // N = 3, ALPHA = 5
                 dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))

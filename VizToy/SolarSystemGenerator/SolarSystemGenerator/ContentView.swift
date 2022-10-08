@@ -14,6 +14,7 @@ struct ContentView: View {
                 .imageScale(.large)
                 .foregroundColor(.accentColor)
             Text("Hello, world!")
+            AccretionView(model: AccretionModel(mass: 1.1))
         }
         .padding()
     }

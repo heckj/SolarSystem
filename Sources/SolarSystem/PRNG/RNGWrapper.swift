@@ -71,7 +71,9 @@ public final class RNGWrapper<PRNG> where PRNG: SeededRandomNumberGenerator {
         return value + adjustment
     }
 
+    // 0 -> 0.99
     func random_eccentricity() -> Double {
+        // pow(n^0.077) should skew the randomness of eccentricity to very low values
         let e = 1.0 - pow(random_number(in: 0.0 ... 1.0), ECCENTRICITY_COEFF)
         if e > 0.99 {
             return 0.99

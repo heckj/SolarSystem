@@ -38,12 +38,19 @@ extension Breathability: CustomStringConvertible {
     }
 }
 
+/// Determines an approximate luminosity for a star based on stellar mass
+/// - Parameter mass_ratio: The mass in solar masses.
+/// - Returns: The luminosity relative to solar luminosity.
 public func luminosity(mass_ratio: Double) -> Double {
     let n: Double
     if mass_ratio < 1.0 {
-        n = 1.75 * (mass_ratio - 0.1) + 3.325
+        n = 1.75 * (mass_ratio - 0.1) + 3.325 // 3.325 (0.1) -> ~4.9 (->1.0)
+    } else if mass_ratio < 2.0 {
+        n = 0.5 * (2.0 - mass_ratio) + 4.4 // 4.0 (1) -> 4.4 (2)
+    } else if mass_ratio < 16.0 {
+        n = 0.7 * (16.0 - mass_ratio) + 3.7 // 4.4 (2) -> 3.7 (16)
     } else {
-        n = 0.5 * (2.0 - mass_ratio) + 4.4
+        n = 3.5
     }
     return (pow(mass_ratio, n))
 }
