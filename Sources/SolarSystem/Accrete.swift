@@ -38,7 +38,7 @@ public struct AccretionState {
     ], dust_left: false)
 }
 
-//let massFormat: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 3))
+// let massFormat: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 3))
 let massFormat: FloatingPointFormatStyle<Double> = .number.notation(.scientific)
 let AUFormat: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 2))
 let eFormat: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
@@ -124,15 +124,17 @@ public struct AccretionDisk {
     }
 
     static func orbital_range(a: Double, e: Double) -> String {
-        return "\((a*(1-e)).formatted(AUFormat))AU-\((a*(1+e)).formatted(AUFormat))AU"
+        "\((a * (1 - e)).formatted(AUFormat))AU-\((a * (1 + e)).formatted(AUFormat))AU"
     }
+
     static func orbital_range(a: Double, e: Double, dg: DustAndGas) -> String {
         let basic = orbital_range(a: a, e: e)
-        return "\(basic) (reduced:\((a*(1-e)*(1-dg.reduced_mass)).formatted(AUFormat))AU-\((a*(1+e)*(1-dg.reduced_mass)).formatted(AUFormat))AU)"
+        return "\(basic) (reduced:\((a * (1 - e) * (1 - dg.reduced_mass)).formatted(AUFormat))AU-\((a * (1 + e) * (1 - dg.reduced_mass)).formatted(AUFormat))AU)"
     }
+
     static func orbital_range(a: Double, e: Double, p: Planet) -> String {
         let basic = orbital_range(a: a, e: e)
-        return "\(basic) (reduced:\((a*(1-e)*(1-p.reduced_mass)).formatted(AUFormat))AU-\((a*(1+e)*(1-p.reduced_mass)).formatted(AUFormat))AU)"
+        return "\(basic) (reduced:\((a * (1 - e) * (1 - p.reduced_mass)).formatted(AUFormat))AU-\((a * (1 + e) * (1 - p.reduced_mass)).formatted(AUFormat))AU)"
     }
 
     /// The outer limit, in AU, of a planetary dust cloud for a star.
@@ -201,7 +203,7 @@ public struct AccretionDisk {
             }
         }
     }
-    
+
     /// Returns the hill radius for a larger mass to potentially gravitationally capture a smaller mass.
     /// - Parameters:
     ///   - bigmass: The mass of the larger orbital body
@@ -212,7 +214,7 @@ public struct AccretionDisk {
     static func hill_radii(bigmass: Double, littlemass: Double, a: Double, e: Double) -> Double {
         a * (1 - e) * pow(littlemass / (3.0 * bigmass), 1.0 / 3.0)
     }
-    
+
     func updated_dust_lanes(accretion_effect_range: ClosedRange<Double>, mass: Double, crit_mass: Double) -> [Dust] {
         // called from `accrete_dust`
 
@@ -299,7 +301,7 @@ public struct AccretionDisk {
             let reduced_mass = pow(mass / (1.0 + mass), 1.0 / 4.0)
             let inner_effect = AccretionDisk.inner_effect_limit(a: a, e: e, reduced_mass: reduced_mass, cloud_eccentricity: cloud_eccentricity)
             let outer_effect = AccretionDisk.outer_effect_limit(a: a, e: e, reduced_mass: reduced_mass, cloud_eccentricity: cloud_eccentricity)
-            return inner_effect...outer_effect
+            return inner_effect ... outer_effect
         }
 
         var mass: Double {
@@ -382,7 +384,7 @@ public struct AccretionDisk {
         for lane in massByLane {
             print("       DG(\(lane.dust.formatted(massFormat)),\(lane.gas.formatted(massFormat)))")
         }
-        
+
         let accumulatedMass: DustAndGas = massByLane.reduce(into: DustAndGas(dust: 0, gas: 0)) { partialResult, dg in
             partialResult = partialResult + dg
         }
@@ -413,7 +415,7 @@ public struct AccretionDisk {
         var new_mass = seed_mass
         var iterationCount = 0
         print("   .. accretion start \(seed_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(AccretionDisk.orbital_range(a: a, e: e, dg: seed_mass))")
-        
+
         var growth_mass: DustAndGas
         repeat {
             iterationCount += 1
@@ -422,7 +424,7 @@ public struct AccretionDisk {
         } while !((new_mass.mass - growth_mass.mass) < (0.0001 * growth_mass.mass))
         print("   .. accretion finished \(growth_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(AccretionDisk.orbital_range(a: a, e: e, dg: growth_mass))")
         print("   .. after \(iterationCount) iterations, last mass growth: \((new_mass.mass - growth_mass.mass).formatted(massFormat))")
-        
+
         let combined_mass = growth_mass + seed_mass
         let accretion_effect_range = combined_mass.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
         // MUTATION PARTS BELOW
@@ -513,8 +515,7 @@ public struct AccretionDisk {
         print("post-collision planet updated to \(planet.mass.formatted(massFormat)), now at \(planet.a.formatted(AUFormat)) (\(planet.e.formatted(eFormat)))")
         print(" -- dust: \(planet.dust_mass.formatted(massFormat)) gas: \(planet.gas_mass.formatted(massFormat))")
         print(" -- critical mass is \(crit_mass.formatted(massFormat)) [accreting gas = \(planet.gas_giant)]")
-              
-            
+
         return planet
     }
 
@@ -560,18 +561,17 @@ public struct AccretionDisk {
 
                 // planetesimal orbit with extreme eccentricity - planetesimal's perihelion
                 // The closest in from it's orbit that the planetesimal "ranges"
-                //let planetesimal_perihelion = (a * (1.0 - e) * (1.0 - planetesimal.reduced_mass))
-                let dist1 = a - (a * (1.0-e) * (1.0-planetesimal.reduced_mass))
-                let dist2 = previous_planet.a * (1.0+previous_planet.e) * (1.0+previous_planet.reduced_mass) - previous_planet.a
+                // let planetesimal_perihelion = (a * (1.0 - e) * (1.0 - planetesimal.reduced_mass))
+                let dist1 = a - (a * (1.0 - e) * (1.0 - planetesimal.reduced_mass))
+                let dist2 = previous_planet.a * (1.0 + previous_planet.e) * (1.0 + previous_planet.reduced_mass) - previous_planet.a
                 /* previous planet's aphelion based on eccentricity */
                 // The farthest out from it's orbit that the previous planet "ranges"
-                //let prevplanet_aphelion = previous_planet.a * (1.0 + previous_planet.e) * (1.0 - previous_planet.reduced_mass)
-                
+                // let prevplanet_aphelion = previous_planet.a * (1.0 + previous_planet.e) * (1.0 - previous_planet.reduced_mass)
 
                 // fabs(_) returns the absolute value of the provided floating point number
                 if fabs(mean_dist_to_prev) <= fabs(dist1) || fabs(mean_dist_to_prev) <= fabs(dist2) {
                     // collision with orbital flow of the previous planet
-                    
+
                     print(" .. potential capture by previous planet:")
                     print(" .. planet: \(AccretionDisk.orbital_range(a: previous_planet.a, e: previous_planet.e, p: previous_planet))")
                     print(" ..   reducedMass: \(previous_planet.reduced_mass)")
@@ -612,19 +612,19 @@ public struct AccretionDisk {
                 // planetesimals' maximum orbital swing (aphelion) with eccentricity
                 // let planetesimal_aphelion = a * (1.0 + e) * (1.0 - planetesimal.reduced_mass)
 
-                let dist1 = (a * (1.0+e) * (1.0+planetesimal.reduced_mass)) - a
+                let dist1 = (a * (1.0 + e) * (1.0 + planetesimal.reduced_mass)) - a
                 let dist2 = planet_with_overlaping_orbit.a - (planet_with_overlaping_orbit.a * (1.0 - planet_with_overlaping_orbit.e) * (1.0 - planet_with_overlaping_orbit.reduced_mass))
                 // next planets perihelion based on eccentricity - closest it ranges towards the start
-                //let next_perihelion = planet_with_overlaping_orbit.a * (1.0 + planet_with_overlaping_orbit.e) * (1.0 - planet_with_overlaping_orbit.reduced_mass)
+                // let next_perihelion = planet_with_overlaping_orbit.a * (1.0 + planet_with_overlaping_orbit.e) * (1.0 - planet_with_overlaping_orbit.reduced_mass)
 
                 // fabs(_) returns the absolute value of the provided floating point number
                 if fabs(mean_dist_to_next) <= fabs(dist1) || fabs(mean_dist_to_next) <= fabs(dist2) {
                     // collision with orbital flow of the next planet
-                    
+
                     print(" .. potential capture by next planet:")
-                    print(" .. planet: \(planet_with_overlaping_orbit.a*(1-planet_with_overlaping_orbit.e)) - \(planet_with_overlaping_orbit.a) - \(planet_with_overlaping_orbit.a*(1+planet_with_overlaping_orbit.e))")
+                    print(" .. planet: \(planet_with_overlaping_orbit.a * (1 - planet_with_overlaping_orbit.e)) - \(planet_with_overlaping_orbit.a) - \(planet_with_overlaping_orbit.a * (1 + planet_with_overlaping_orbit.e))")
                     print(" ..   reducedMass: \(planet_with_overlaping_orbit.reduced_mass)")
-                    print(" .. tisimal: \(a*(1-e)) - \(a) - \(a*(1+e))")
+                    print(" .. tisimal: \(a * (1 - e)) - \(a) - \(a * (1 + e))")
                     print(" ..   reducedMass: \(planetesimal.reduced_mass)")
                     print("    mean distance to next: \(mean_dist_to_next)")
                     print("    dist1: \(dist1)")
