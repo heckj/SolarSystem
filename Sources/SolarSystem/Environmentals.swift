@@ -38,6 +38,10 @@ extension Breathability: CustomStringConvertible {
     }
 }
 
+public func orbital_range_string(a: Double, e: Double) -> String {
+    "\((a * (1 - e)).formatted(AUFormat))AU-\((a * (1 + e)).formatted(AUFormat))AU"
+}
+
 /// Determines an approximate luminosity for a star based on stellar mass
 /// - Parameter mass_ratio: The mass in solar masses.
 /// - Returns: The luminosity relative to solar luminosity.

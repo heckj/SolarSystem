@@ -99,6 +99,11 @@ public final class Planet: Equatable {
         pow(mass / (1.0 + mass), 1.0 / 4.0)
     }
 
+    func orbital_range() -> String {
+        let basic = orbital_range_string(a: a, e: e)
+        return "\(basic) (reduced:\((a * (1 - e) * (1 - reduced_mass)).formatted(AUFormat))AU-\((a * (1 + e) * (1 - reduced_mass)).formatted(AUFormat))AU)"
+    }
+
     public var planet_no: Int
     public var a: Double /* semi-major axis of solar orbit (in AU)*/
     public var e: Double /* eccentricity of solar orbit         */
@@ -223,20 +228,18 @@ extension Planet: Comparable {
 /*    Define the solar system for comparisons, etc. */
 // #define ZEROES 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,NULL,0,NULL,tUnknown
 
-public final class Dust {
+public struct Dust {
     public var inner_edge: Double
     public var outer_edge: Double
     public var dust_present: Bool
     public var gas_present: Bool
     public let range: ClosedRange<Double>
-    var next_band: Dust?
 
-    init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band: Dust?) {
+    init(inner_edge: Double, outer_edge: Double, dust_present: Bool, gas_present: Bool, next_band _: Dust?) {
         self.inner_edge = inner_edge
         self.outer_edge = outer_edge
         self.dust_present = dust_present
         self.gas_present = gas_present
-        self.next_band = next_band
         range = inner_edge ... outer_edge
     }
 }

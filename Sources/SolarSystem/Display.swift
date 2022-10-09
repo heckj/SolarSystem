@@ -29,7 +29,7 @@ func text_describe_system(sun: Sun, planets: [Planet], do_gases: Bool, seed: UIn
         } else {
             textSymbol = "."
         }
-        print("\(counter)\t\(Aplanet.a.formatted(FPStyle)) AU\t\((Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle)) EM\t\(textSymbol)\n")
+        print("\(counter)\t\(textSymbol)\t\(Aplanet.a.formatted(AUFormat)) AU (\(Aplanet.e.formatted(eFormat))) \(Aplanet.orbital_range())\t\((Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(massFormat)) EM\n")
         counter += 1
         planet = planet?.next_planet
     }

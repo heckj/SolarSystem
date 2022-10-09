@@ -123,20 +123,6 @@ public struct AccretionDisk {
         }
     }
 
-    static func orbital_range(a: Double, e: Double) -> String {
-        "\((a * (1 - e)).formatted(AUFormat))AU-\((a * (1 + e)).formatted(AUFormat))AU"
-    }
-
-    static func orbital_range(a: Double, e: Double, dg: DustAndGas) -> String {
-        let basic = orbital_range(a: a, e: e)
-        return "\(basic) (reduced:\((a * (1 - e) * (1 - dg.reduced_mass)).formatted(AUFormat))AU-\((a * (1 + e) * (1 - dg.reduced_mass)).formatted(AUFormat))AU)"
-    }
-
-    static func orbital_range(a: Double, e: Double, p: Planet) -> String {
-        let basic = orbital_range(a: a, e: e)
-        return "\(basic) (reduced:\((a * (1 - e) * (1 - p.reduced_mass)).formatted(AUFormat))AU-\((a * (1 + e) * (1 - p.reduced_mass)).formatted(AUFormat))AU)"
-    }
-
     /// The outer limit, in AU, of a planetary dust cloud for a star.
     /// - Parameter stellar_mass: The mass of the star, in solar masses
     /// - Returns: The distance, in AU, of the outermost range of dust for planetary accretion.
@@ -314,6 +300,11 @@ public struct AccretionDisk {
             pow(mass / (1.0 + mass), 1.0 / 4.0)
         }
 
+        func orbital_range(a: Double, e: Double) -> String {
+            let basic = orbital_range_string(a: a, e: e)
+            return "\(basic) (reduced:\((a * (1 - e) * (1 - reduced_mass)).formatted(AUFormat))AU-\((a * (1 + e) * (1 - reduced_mass)).formatted(AUFormat))AU)"
+        }
+
         public static func + (lhs: DustAndGas, rhs: DustAndGas) -> DustAndGas {
             DustAndGas(dust: lhs.dust + rhs.dust, gas: lhs.gas + rhs.gas)
         }
@@ -414,7 +405,7 @@ public struct AccretionDisk {
         // Growth from the last sweep being less than 0.0001 times larger than the previous sweep.
         var new_mass = seed_mass
         var iterationCount = 0
-        print("   .. accretion start \(seed_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(AccretionDisk.orbital_range(a: a, e: e, dg: seed_mass))")
+        print("   .. accretion start \(seed_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(seed_mass.orbital_range(a: a, e: e))")
 
         var growth_mass: DustAndGas
         repeat {
@@ -422,7 +413,7 @@ public struct AccretionDisk {
             growth_mass = new_mass
             new_mass = collect_dust(mass: new_mass.mass, critical_mass: crit_mass, a: a, e: e, dust_density: dust_density)
         } while !((new_mass.mass - growth_mass.mass) < (0.0001 * growth_mass.mass))
-        print("   .. accretion finished \(growth_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(AccretionDisk.orbital_range(a: a, e: e, dg: growth_mass))")
+        print("   .. accretion finished \(growth_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(growth_mass.orbital_range(a: a, e: e))")
         print("   .. after \(iterationCount) iterations, last mass growth: \((new_mass.mass - growth_mass.mass).formatted(massFormat))")
 
         let combined_mass = growth_mass + seed_mass
@@ -430,7 +421,7 @@ public struct AccretionDisk {
         // MUTATION PARTS BELOW
         dust_lanes = updated_dust_lanes(accretion_effect_range: accretion_effect_range, mass: combined_mass.mass, crit_mass: crit_mass)
         dust_left = dust_available(planet_inner_bound ... planet_outer_bound)
-        print(" .. Accreted dust --> \(combined_mass.mass.formatted(massFormat)) \u{2609} at \(AccretionDisk.orbital_range(a: a, e: e, dg: combined_mass))")
+        print(" .. Accreted dust --> \(combined_mass.mass.formatted(massFormat)) \u{2609} at \(combined_mass.orbital_range(a: a, e: e))")
         return combined_mass
     }
 
@@ -497,7 +488,7 @@ public struct AccretionDisk {
     mutating func collide(planet: Planet, planetesimal: DustAndGas, a: Double, e: Double) -> (Planet) {
         let crit_mass = AccretionDisk.critical_limit(orbital_radius: a, eccentricity: e, stell_luminosity_ratio: stellar_luminosity_ratio)
 
-        print("Collision between planet and planetesimal! \(AccretionDisk.orbital_range(a: planet.a, e: planet.e, p: planet)) AU (\(planet.mass.formatted(massFormat)) \u{2609}) with \(AccretionDisk.orbital_range(a: a, e: e, dg: planetesimal)) AU (\(planetesimal.mass.formatted(massFormat)) \u{2609})")
+        print("Collision between planet and planetesimal! \(planet.orbital_range()) AU (\(planet.mass.formatted(massFormat)) \u{2609}) with \(planetesimal.orbital_range(a: a, e: e)) AU (\(planetesimal.mass.formatted(massFormat)) \u{2609})")
         let combined = DustAndGas(dust: planet.dust_mass + planetesimal.dust, gas: planet.gas_mass + planetesimal.gas)
 
         let local_dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
@@ -573,9 +564,9 @@ public struct AccretionDisk {
                     // collision with orbital flow of the previous planet
 
                     print(" .. potential capture by previous planet:")
-                    print(" .. planet: \(AccretionDisk.orbital_range(a: previous_planet.a, e: previous_planet.e, p: previous_planet))")
+                    print(" .. planet: \(previous_planet.orbital_range())")
                     print(" ..   reducedMass: \(previous_planet.reduced_mass)")
-                    print(" .. tisimal: \(AccretionDisk.orbital_range(a: a, e: e, dg: planetesimal))")
+                    print(" .. tisimal: \(planetesimal.orbital_range(a: a, e: e))")
                     print(" ..   reducedMass: \(planetesimal.reduced_mass)")
                     print("    mean distance to prev: \(mean_dist_to_prev)")
                     print("    dist1: \(dist1)")
@@ -708,7 +699,7 @@ public struct AccretionDisk {
             let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
             if dust_available(accretion_effect_range) {
                 // print("Injecting protoplanet at \(a.formatted(FPStyle)) AU")
-                msgs.send("Injecting protoplanet at \(AccretionDisk.orbital_range(a: a, e: e, dg: seed_dg)) \(seed_dg.mass.formatted(massFormat)) \u{2609}")
+                msgs.send("Injecting protoplanet at \(seed_dg.orbital_range(a: a, e: e)) \(seed_dg.mass.formatted(massFormat)) \u{2609}")
 
                 // N = 3, ALPHA = 5
                 dust_density = dust_density_coeff * sqrt(stellar_mass_ratio) * exp(-ALPHA * pow(a, 1.0 / N))
