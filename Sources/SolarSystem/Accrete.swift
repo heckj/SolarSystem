@@ -281,7 +281,11 @@ public struct AccretionDisk {
         return collapsed
     }
 
-    struct DustAndGas {
+    struct DustAndGas: CustomStringConvertible {
+        var description: String {
+            return "\( (self.mass * SUN_MASS_IN_EARTH_MASSES).formatted(massFormat) )EM (dust: \((self.dust * SUN_MASS_IN_EARTH_MASSES).formatted(massFormat))EM gas: \( (self.gas * SUN_MASS_IN_EARTH_MASSES).formatted(massFormat))EM)"
+        }
+        
         var dust: Double
         var gas: Double
         func accretion_effect_range(a: Double, e: Double, cloud_eccentricity: Double) -> ClosedRange<Double> {
@@ -310,6 +314,7 @@ public struct AccretionDisk {
         public static func + (lhs: DustAndGas, rhs: DustAndGas) -> DustAndGas {
             DustAndGas(dust: lhs.dust + rhs.dust, gas: lhs.gas + rhs.gas)
         }
+        
     }
 
     /// Computes the mass collected during an accretion pass at the distance, and eccentricity you provide.
@@ -326,8 +331,8 @@ public struct AccretionDisk {
 
         let seed_dg = DustAndGas(dust: mass, gas: 0)
         let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
-        print("    .. collecting dust for mass \(seed_dg.mass.formatted(massFormat)) at \(a.formatted(AUFormat)) (\(e.formatted(eFormat)))")
-        print("    .. collection range: \(accretion_effect_range.lowerBound.formatted(AUFormatExtended)) to \(accretion_effect_range.upperBound.formatted(AUFormatExtended))")
+        //print("    .. collecting dust for mass \(seed_dg.mass.formatted(massFormat)) at \(a.formatted(AUFormat)) (\(e.formatted(eFormat)))")
+        //print("    .. collection range: \(accretion_effect_range.lowerBound.formatted(AUFormatExtended)) to \(accretion_effect_range.upperBound.formatted(AUFormatExtended))")
         let reduced_mass = pow(mass / (1.0 + mass), 1.0 / 4.0)
         let massByLane: [DustAndGas] = dust_lanes.map { dustlane in
             let temp_density: Double
@@ -366,7 +371,7 @@ public struct AccretionDisk {
 
                 let volume = 4.0 * Double.pi * pow(a, 2.0) * reduced_mass * (1.0 - e * (outer_width_reduction - inner_width_reduction) / bandwidth) * width
                 let accumulated_mass = volume * mass_density
-                print("        .. Accumulating volume \(volume) : mass x\(accumulated_mass)")
+                //print("        .. Accumulating volume \(volume) : mass \(accumulated_mass)")
                 let gas_mass = volume * gas_density
                 let dust_mass = accumulated_mass - gas_mass
                 return DustAndGas(dust: dust_mass, gas: gas_mass)
@@ -374,15 +379,15 @@ public struct AccretionDisk {
             return DustAndGas(dust: 0, gas: 0)
         }
 
-        print("    .. \(massByLane.count) dust lanes reporting in mass:")
-        for lane in massByLane {
-            print("       DG(\(lane.dust.formatted(massFormat)),\(lane.gas.formatted(massFormat)))")
-        }
+//        print("    .. \(massByLane.count) dust lanes reporting in mass:")
+//        for lane in massByLane {
+//            print("       DG(\(lane.dust.formatted(massFormat)),\(lane.gas.formatted(massFormat)))")
+//        }
 
         let accumulatedMass: DustAndGas = massByLane.reduce(into: DustAndGas(dust: 0, gas: 0)) { partialResult, dg in
             partialResult = partialResult + dg
         }
-        print("       Accumulated DG(\(accumulatedMass.dust.formatted(massFormat)),\(accumulatedMass.gas.formatted(massFormat)))")
+        //print("       Accumulated DG(\(accumulatedMass.dust.formatted(massFormat)),\(accumulatedMass.gas.formatted(massFormat)))")
         return accumulatedMass
     }
 
@@ -408,7 +413,7 @@ public struct AccretionDisk {
         // Growth from the last sweep being less than 0.0001 times larger than the previous sweep.
         var new_mass = seed_mass
         var iterationCount = 0
-        print("   .. accretion start \(seed_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(seed_mass.orbital_range(a: a, e: e))")
+//        print("   .. accretion start \(seed_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(seed_mass.orbital_range(a: a, e: e))")
 
         var growth_mass: DustAndGas
         repeat {
@@ -416,8 +421,8 @@ public struct AccretionDisk {
             growth_mass = new_mass
             new_mass = collect_dust(mass: new_mass.mass, critical_mass: crit_mass, a: a, e: e, dust_density: dust_density)
         } while !((new_mass.mass - growth_mass.mass) < (0.0001 * growth_mass.mass))
-        print("   .. accretion finished \(growth_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(growth_mass.orbital_range(a: a, e: e))")
-        print("   .. after \(iterationCount) iterations, last mass growth: \((new_mass.mass - growth_mass.mass).formatted(massFormat))")
+//        print("   .. accretion finished \(growth_mass.mass.formatted(massFormat)) a:\(a.formatted(AUFormat)) e:\(e.formatted(eFormat)) \(growth_mass.orbital_range(a: a, e: e))")
+//        print("   .. after \(iterationCount) iterations, last mass growth: \((new_mass.mass - growth_mass.mass).formatted(massFormat))")
 
         let combined_mass = growth_mass + seed_mass
         let accretion_effect_range = combined_mass.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
@@ -716,6 +721,7 @@ public struct AccretionDisk {
                 let planetesimal = accrete_dust(seed_mass: seed_dg, a: a, e: e, crit_mass: crit_mass, dust_density: dust_density)
 
                 if planetesimal.mass > PROTOPLANET_MASS {
+                    print("Adding planet: \(a.formatted(AUFormatExtended)) (\(e.formatted(eFormat))) \(planetesimal)")
                     let updated_planets = coalesce_planetesimals(planetesimal: planetesimal, a: a, e: e, crit_mass: crit_mass, do_moons: do_moons)
                     planets = updated_planets.sorted()
                 } else {
