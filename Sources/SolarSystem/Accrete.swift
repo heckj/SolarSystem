@@ -41,6 +41,8 @@ public struct AccretionState {
 // let massFormat: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 3))
 let massFormat: FloatingPointFormatStyle<Double> = .number.notation(.scientific)
 let AUFormat: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 2))
+let AUFormatExtended: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 4))
+
 let eFormat: FloatingPointFormatStyle<Double> = .number.precision(.integerAndFractionLength(integerLimits: 1..., fractionLimits: 0 ... 3))
 
 public struct AccretionDisk {
@@ -325,7 +327,8 @@ public struct AccretionDisk {
         let seed_dg = DustAndGas(dust: mass, gas: 0)
         let accretion_effect_range = seed_dg.accretion_effect_range(a: a, e: e, cloud_eccentricity: cloud_eccentricity)
         print("    .. collecting dust for mass \(seed_dg.mass.formatted(massFormat)) at \(a.formatted(AUFormat)) (\(e.formatted(eFormat)))")
-        print("    .. collection range: \(accretion_effect_range.lowerBound.formatted(AUFormat)) to \(accretion_effect_range.upperBound.formatted(AUFormat))")
+        print("    .. collection range: \(accretion_effect_range.lowerBound.formatted(AUFormatExtended)) to \(accretion_effect_range.upperBound.formatted(AUFormatExtended))")
+        let reduced_mass = pow(mass / (1.0 + mass), 1.0 / 4.0)
         let massByLane: [DustAndGas] = dust_lanes.map { dustlane in
             let temp_density: Double
             let mass_density: Double
@@ -361,9 +364,9 @@ public struct AccretionDisk {
                 width -= outer_width_reduction
                 width -= inner_width_reduction
 
-                let volume = 4.0 * Double.pi * pow(a, 2.0) * mass * (1.0 - e * (outer_width_reduction - inner_width_reduction) / bandwidth) * width
-
+                let volume = 4.0 * Double.pi * pow(a, 2.0) * reduced_mass * (1.0 - e * (outer_width_reduction - inner_width_reduction) / bandwidth) * width
                 let accumulated_mass = volume * mass_density
+                print("        .. Accumulating volume \(volume) : mass x\(accumulated_mass)")
                 let gas_mass = volume * gas_density
                 let dust_mass = accumulated_mass - gas_mass
                 return DustAndGas(dust: dust_mass, gas: gas_mass)
@@ -422,6 +425,7 @@ public struct AccretionDisk {
         dust_lanes = updated_dust_lanes(accretion_effect_range: accretion_effect_range, mass: combined_mass.mass, crit_mass: crit_mass)
         dust_left = dust_available(planet_inner_bound ... planet_outer_bound)
         print(" .. Accreted dust --> \(combined_mass.mass.formatted(massFormat)) \u{2609} at \(combined_mass.orbital_range(a: a, e: e))")
+        print("    Earth Masses: \((combined_mass.mass * SUN_MASS_IN_EARTH_MASSES).formatted(massFormat)) (AU: \(a.formatted(AUFormat)), ecc: \(e.formatted(eFormat)))")
         return combined_mass
     }
 
@@ -676,7 +680,7 @@ public struct AccretionDisk {
         return AccretionState(dustlanes: current_dust_lanes, planets: current_planets, dust_left: dust_left)
     }
 
-    public mutating func advance() {
+    public mutating func advance(distance: Double? = nil, eccentricity: Double? = nil) {
         let a: Double // distance, in AU
         let e: Double // eccentricity of orbit
         let seed_dg = DustAndGas(dust: PROTOPLANET_MASS, gas: 0)
@@ -685,12 +689,14 @@ public struct AccretionDisk {
         // (called 'gravitational instability' in current (~2020) astrophysics research)
         // and continue to deploy "seeds" until the dust of the disk is "consumed".
         if dust_left {
-            if let definitely_seed = current_seed {
-                a = definitely_seed.a
-                e = definitely_seed.e
-                current_seed = definitely_seed.next_planet
+            if let distance = distance {
+                a = distance
             } else {
                 a = prng.random_number(in: planet_inner_bound ... planet_outer_bound)
+            }
+            if let eccentricity = eccentricity {
+                e = eccentricity
+            } else {
                 e = prng.random_eccentricity()
             }
             // print("Checking \(a.formatted(FPStyle)) AU")
