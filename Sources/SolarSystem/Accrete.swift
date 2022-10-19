@@ -593,6 +593,7 @@ public struct AccretionDisk {
                     }
 
                     if !finished {
+                        print("Collision between previous planet and planetesimal")
                         // collide previous planet and planetesimal
                         // collide has the side effect of potential additional accretion, and updating the dust lanes
                         _ = collide(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e)
@@ -644,6 +645,7 @@ public struct AccretionDisk {
                     }
 
                     if !finished {
+                        print("Collision between next planet and planetesimal")
                         // collide next planet and planetesimal
                         // collide has the side effect of potential additional accretion, and updating the dust lanes
                         _ = collide(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e)
@@ -651,7 +653,24 @@ public struct AccretionDisk {
                     }
                 }
                 // no intersection/collision with the next planet in the sequence
+                if !finished {
+                    print("No collisions, creating planet")
+                    // No planet exists with an overlapping orbit
+                    // Planetesimals didn't collide, so we make it into a planet.
+                    let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
+                                            gas_giant: planetesimal.mass >= crit_mass,
+                                            dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
+                                            next_planet: nil)
+                    if let insert_index = planets.firstIndex(where: { planet in
+                        planet.a > a
+                    }) {
+                        planets.insert(the_planet, at: insert_index)
+                    } else {
+                        planets.append(the_planet)
+                    }
+                }
             } else {
+                print("No collisions, creating planet")
                 // No planet exists with an overlapping orbit
                 // Planetesimals didn't collide, so we make it into a planet.
                 let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
@@ -667,6 +686,7 @@ public struct AccretionDisk {
                 }
             }
         } else {
+            print("No collisions, creating planet")
             // No planet exists with an overlapping orbit
             // Planetesimals didn't collide, so we make it into a planet.
             let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,

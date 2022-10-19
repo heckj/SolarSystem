@@ -93,22 +93,39 @@ final class SolarSystemTests: XCTestCase {
         XCTAssertEqual(diskCopy.currentState().planets.count, 3)
         diskCopy.advance(distance: seed_sequence[3].0, eccentricity: seed_sequence[3].1)
         XCTAssertEqual(diskCopy.currentState().planets.count, 4)
-//        diskCopy.advance(distance: seed_sequence[4].0, eccentricity: seed_sequence[4].1)
-//        XCTAssertEqual(diskCopy.currentState().planets.count, 5)
-//        diskCopy.advance(distance: seed_sequence[5].0, eccentricity: seed_sequence[5].1)
-//        XCTAssertEqual(diskCopy.currentState().planets.count, 6)
-//        diskCopy.advance(distance: seed_sequence[6].0, eccentricity: seed_sequence[6].1)
-//        XCTAssertEqual(diskCopy.currentState().planets.count, 7)
-//        diskCopy.advance(distance: seed_sequence[7].0, eccentricity: seed_sequence[7].1)
-//        XCTAssertEqual(diskCopy.currentState().planets.count, 8)
-//        diskCopy.advance(distance: seed_sequence[8].0, eccentricity: seed_sequence[8].1)
-//        XCTAssertEqual(diskCopy.currentState().planets.count, 9)
-//        diskCopy.advance(distance: seed_sequence[9].0, eccentricity: seed_sequence[9].1)
-//        diskCopy.advance(distance: seed_sequence[10].0, eccentricity: seed_sequence[10].1)
-//        diskCopy.advance(distance: seed_sequence[11].0, eccentricity: seed_sequence[11].1)
-//        diskCopy.advance(distance: seed_sequence[12].0, eccentricity: seed_sequence[12].1)
-//
-//        let state = diskCopy.currentState()
-//        XCTAssertEqual(state.planets.count, 11)
+        diskCopy.advance(distance: seed_sequence[4].0, eccentricity: seed_sequence[4].1)
+        XCTAssertEqual(diskCopy.currentState().planets.count, 5)
+        diskCopy.advance(distance: seed_sequence[5].0, eccentricity: seed_sequence[5].1)
+        XCTAssertEqual(diskCopy.currentState().planets.count, 6)
+        diskCopy.advance(distance: seed_sequence[6].0, eccentricity: seed_sequence[6].1)
+        //        Injecting protoplanet (mass=1e-15) at 45.1105 AU (e=0.223403).
+        //        Dust density at 45.1105 AU is 4.0795e-11.
+        //        Accreted 0.0665213EM dust and 0EM gas.
+        //        Potential collision at 34.653 AU : diff: -10.458, dist1: 15.115, dist2 2.174
+        //        Moon Captured... 34.653 AU (4.97EM) <- 0.07EM
+
+        XCTAssertEqual(diskCopy.currentState().planets.count, 6)
+        diskCopy.advance(distance: seed_sequence[7].0, eccentricity: seed_sequence[7].1)
+        XCTAssertEqual(diskCopy.currentState().planets.count, 7)
+        diskCopy.advance(distance: seed_sequence[8].0, eccentricity: seed_sequence[8].1)
+        //        Injecting protoplanet (mass=1e-15) at 51.7443 AU (e=0.173246).
+        //        Dust density at 51.7443 AU is 1.77372e-11.
+        //        Accreted 0.0253279EM dust and 0EM gas.
+        //        Potential collision at 46.369 AU : diff: -5.375, dist1: 11.624, dist2 2.524
+        //        Moon Captured... 46.369 AU (0.12EM) <- 0.03EM
+
+        XCTAssertEqual(diskCopy.currentState().planets.count, 7)
+        diskCopy.advance(distance: seed_sequence[9].0, eccentricity: seed_sequence[9].1)
+        XCTAssertEqual(diskCopy.currentState().planets.count, 8)
+        diskCopy.advance(distance: seed_sequence[10].0, eccentricity: seed_sequence[10].1)
+        XCTAssertEqual(diskCopy.currentState().planets.count, 9)
+        diskCopy.advance(distance: seed_sequence[11].0, eccentricity: seed_sequence[11].1)
+        XCTAssertEqual(diskCopy.currentState().planets.count, 10)
+        diskCopy.advance(distance: seed_sequence[12].0, eccentricity: seed_sequence[12].1)
+        
+        
+        
+        let state = diskCopy.currentState()
+        XCTAssertEqual(state.planets.count, 11)
     }
 }
