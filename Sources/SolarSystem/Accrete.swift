@@ -586,7 +586,7 @@ public struct AccretionDisk {
                     print("    tisimal's new e: \(new_e)")
                     // NOW DO SOMETHING WITH THE NEW a and e values
                     if do_moons {
-                        let (captured, _) = attempted_moon_capture(planet: planet_with_overlaping_orbit, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                        let (captured, _) = attempted_moon_capture(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
                         if captured {
                             finished = true
                         }
@@ -600,9 +600,10 @@ public struct AccretionDisk {
                         finished = true
                     }
                 }
-                // no intersection with previous planets, continue looking for overlap and possible collision
             }
 
+            // no intersection with previous planets, continue looking for overlap and possible collision if we haven't
+            // already collided or been captured.
             if !finished {
                 // if finished, then we collided and interacted with the previous planet and shouldn't check or attempt
                 // capture or collision with the next planet in the sequence.
@@ -653,48 +654,84 @@ public struct AccretionDisk {
                     }
                 }
                 // no intersection/collision with the next planet in the sequence
-                if !finished {
-                    print("No collisions, creating planet")
-                    // No planet exists with an overlapping orbit
-                    // Planetesimals didn't collide, so we make it into a planet.
-                    let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
-                                            gas_giant: planetesimal.mass >= crit_mass,
-                                            dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
-                                            next_planet: nil)
-                    if let insert_index = planets.firstIndex(where: { planet in
-                        planet.a > a
-                    }) {
-                        planets.insert(the_planet, at: insert_index)
-                    } else {
-                        planets.append(the_planet)
+            }
+        } else if let previous_planet = planets.last {
+            // no planets have an overlapping orbit, so we just need to check the last planet (if any exists) as a
+            // "previous planet" for potential collision and capture
+            
+            // prev planet calculations
+            let mean_dist_to_prev = a - previous_planet.a
+            
+            // planetesimal orbit with extreme eccentricity - planetesimal's perihelion
+            // The closest in from it's orbit that the planetesimal "ranges"
+            // let planetesimal_perihelion = (a * (1.0 - e) * (1.0 - planetesimal.reduced_mass))
+            let dist1 = a - (a * (1.0 - e) * (1.0 - planetesimal.reduced_mass))
+            let dist2 = previous_planet.a * (1.0 + previous_planet.e) * (1.0 + previous_planet.reduced_mass) - previous_planet.a
+            /* previous planet's aphelion based on eccentricity */
+            // The farthest out from it's orbit that the previous planet "ranges"
+            // let prevplanet_aphelion = previous_planet.a * (1.0 + previous_planet.e) * (1.0 - previous_planet.reduced_mass)
+            
+            // fabs(_) returns the absolute value of the provided floating point number
+            if fabs(mean_dist_to_prev) <= fabs(dist1) || fabs(mean_dist_to_prev) <= fabs(dist2) {
+                // collision with orbital flow of the previous planet
+                
+                print(" .. potential capture by previous planet:")
+                print(" .. planet: \(previous_planet.orbital_range())")
+                print(" ..   reducedMass: \(previous_planet.reduced_mass)")
+                print(" .. tisimal: \(planetesimal.orbital_range(a: a, e: e))")
+                print(" ..   reducedMass: \(planetesimal.reduced_mass)")
+                print("    mean distance to prev: \(mean_dist_to_prev)")
+                print("    dist1: \(dist1)")
+                print("    dist2: \(dist2)")
+                
+                let (new_a, new_e) = updated_orbit(planet: previous_planet, planetesimal: planetesimal, a: a, e: e)
+                print("    tisimal's new a: \(new_a)")
+                print("    tisimal's new e: \(new_e)")
+                // NOW DO SOMETHING WITH THE NEW a and e values
+                if do_moons {
+                    let (captured, _) = attempted_moon_capture(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e, crit_mass: crit_mass)
+                    if captured {
+                        finished = true
                     }
                 }
-            } else {
-                print("No collisions, creating planet")
-                // No planet exists with an overlapping orbit
-                // Planetesimals didn't collide, so we make it into a planet.
-                let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
-                                        gas_giant: planetesimal.mass >= crit_mass,
-                                        dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
-                                        next_planet: nil)
-                if let insert_index = planets.firstIndex(where: { planet in
-                    planet.a > a
-                }) {
-                    planets.insert(the_planet, at: insert_index)
-                } else {
-                    planets.append(the_planet)
+                
+                if !finished {
+                    print("Collision between previous planet and planetesimal")
+                    // collide previous planet and planetesimal
+                    // collide has the side effect of potential additional accretion, and updating the dust lanes
+                    _ = collide(planet: previous_planet, planetesimal: planetesimal, a: new_a, e: new_e)
+                    finished = true
                 }
             }
-        } else {
-            print("No collisions, creating planet")
+        }
+        
+        if !finished {
+            print("No previous collisions or capture, creating planet")
             // No planet exists with an overlapping orbit
             // Planetesimals didn't collide, so we make it into a planet.
             let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
                                     gas_giant: planetesimal.mass >= crit_mass,
                                     dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
                                     next_planet: nil)
-            planets.append(the_planet)
+            if let insert_index = planets.firstIndex(where: { planet in
+                planet.a > a
+            }) {
+                planets.insert(the_planet, at: insert_index)
+            } else {
+                planets.append(the_planet)
+            }
         }
+
+//        else {
+//            print("No collisions, creating planet")
+//            // No planet exists with an overlapping orbit
+//            // Planetesimals didn't collide, so we make it into a planet.
+//            let the_planet = Planet(planet_no: 0, a: a, e: e, axial_tilt: 0, mass: planetesimal.mass,
+//                                    gas_giant: planetesimal.mass >= crit_mass,
+//                                    dust_mass: planetesimal.dust, gas_mass: planetesimal.gas,
+//                                    next_planet: nil)
+//            planets.append(the_planet)
+//        }
 
         return planets
     }

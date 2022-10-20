@@ -122,9 +122,7 @@ final class SolarSystemTests: XCTestCase {
         diskCopy.advance(distance: seed_sequence[11].0, eccentricity: seed_sequence[11].1)
         XCTAssertEqual(diskCopy.currentState().planets.count, 10)
         diskCopy.advance(distance: seed_sequence[12].0, eccentricity: seed_sequence[12].1)
-        
-        
-        
+
         let state = diskCopy.currentState()
         XCTAssertEqual(state.planets.count, 11)
     }
