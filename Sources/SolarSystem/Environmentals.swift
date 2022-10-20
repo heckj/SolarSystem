@@ -439,7 +439,7 @@ func ice_fraction(hydro_fraction: Double, surf_temp: Double) -> Double {
 /// *    This is Fogg's eq.19.  The ecosphere radius is given in AU, the orbital */
 /// *    radius in AU, and the temperature returned is in Kelvin.                */
 /// *--------------------------------------------------------------------------*/
-func est_temp(ecosphere_radius: Double, orb_radius: Double, albedo: Double) -> Double {
+public func est_temp(ecosphere_radius: Double, orb_radius: Double, albedo: Double) -> Double {
     sqrt(ecosphere_radius / orb_radius)
         * pow1_4((1.0 - albedo) / (1.0 - EARTH_ALBEDO))
         * EARTH_AVERAGE_KELVIN

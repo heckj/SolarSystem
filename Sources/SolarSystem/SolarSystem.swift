@@ -804,7 +804,7 @@ struct InterestingCounts {
 }
 
 //  main entrance point to invoking generation or exploration
-public func stargen(flags: FunctionFlags, action: Actions) {
+public func stargen(flags: FunctionFlags) {
     var sun = Sun(luminosity: 0, mass: 0, life: 0, age: 0, r_ecosphere: 0, name: "")
     let min_mass = 0.4
     let inc_mass = 0.05
@@ -816,61 +816,6 @@ public func stargen(flags: FunctionFlags, action: Actions) {
 //    let csv_file_name = "StarGen.csv"
     var prng = RNGWrapper(Xoshiro(seed: flags.seed_argument))
 
-    switch action {
-    case .listGases:
-        var total = 0.0
-
-        for gas in gases.sorted(by: { gasA, gasB in
-            gasA.abunds > gasB.abunds
-        }) {
-            if gas.weight >= 5.0, gas.max_ipp < 1e9 { // exclude H and He from max_ipp calculation
-                total += gas.max_ipp
-            }
-
-            print(" \(gas.num): \(gas.symbol) - \(gas.name) \(gas.num == AN_O ? MIN_O2_IPP : 0.0) mb - \(gas.max_ipp) mb")
-        }
-        print("Total Max ipp: \(total)")
-        print("Max pressure: \(MAX_HABITABLE_PRESSURE) atm")
-
-    case .listCatalog:
-        if let catalog = flags.catalog_argument {
-            for star in catalog.stars {
-                print("\(star.name) M: \(star.mass), L: \(star.luminosity)")
-            }
-        }
-
-    case .sizeCheck:
-        let temp = est_temp(ecosphere_radius: 1.0, orb_radius: 1.0, albedo: EARTH_ALBEDO)
-        print("Size of a double: \(MemoryLayout<Double>.size)")
-        print("Earth Est Temp: \(temp) K, \(temp - FREEZING_POINT_OF_WATER) C, Earth rel: \(temp - EARTH_AVERAGE_KELVIN) C ")
-
-    case .listVerbosity:
-        let msg = """
-        Verbosity flags are hexidecimal numbers: \
-        \t0001\tEarthlike count \
-        \t0002\tTrace Min/Max \
-        \t0004\tList Earthlike \
-        \t \
-        \t0010\tList Gases \
-        \t0020\tTrace temp iterations \
-        \t0040\tGas lifetimes \
-        \t0080\tList loss of accreted gas mass \
-        \t \
-        \t0100\tInjecting, collision \
-        \t0200\tChecking..., Failed... \
-        \t0400\tList binary info \
-        \t0800\tList accreted atmospheres \
-        \t \
-        \t1000\tMoons (experimental) \
-        \t2000\tOxygen poisoned (experimental) \
-        \t4000\tTrace gas percentages \
-        \t8000\tList Jovians in the ecosphere \
-        \t \
-        \t10000\tList type diversity \
-        \t20000\tTrace Surface temp interactions
-        """
-        print(msg)
-    case .generate:
         sun.mass = flags.mass_argument
         system_count = flags.count_argument
         var seed_planets: Planet?
@@ -962,5 +907,5 @@ public func stargen(flags: FunctionFlags, action: Actions) {
 
             generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, dust_density_coeff: dust_density_coeff, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng, counts: &counts)
         }
-    }
+    
 }

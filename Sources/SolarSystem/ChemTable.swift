@@ -37,7 +37,7 @@ public final class ChemTableEntry {
     }
 }
 
-let gases: [ChemTableEntry] = [
+public let gases: [ChemTableEntry] = [
     ChemTableEntry(num: AN_H, symbol: "H", html_symbol: "H<SUB><SMALL>2</SMALL></SUB>", name: "Hydrogen",
                    weight: 1.0079, melt: 14.06, boil: 20.40, density: 8.99e-05,
                    abunde: 0.00125893, abunds: 27925.4, reactivity: 1, max_ipp: 0.0),

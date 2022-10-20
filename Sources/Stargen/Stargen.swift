@@ -3,22 +3,80 @@ import SolarSystem
 
 @main
 struct Stargen: ParsableCommand {
-    @Option(help: "The pseudo-random number generator seed.")
-    var seed: UInt64 = 2354
+    // Customize your command's help and subcommands by implementing the
+    // `configuration` property.
+    static var configuration = CommandConfiguration(
+        // Optional abstracts and discussions are used for help output.
+        abstract: "A utility for performing maths.",
 
-//    @Flag(help: "Include a counter with each repetition.")
-//    var includeCounter = false
+        // Commands can define a version for automatic '--version' support.
+        version: "1.0.0",
 
-    @Argument(help: "The mass (in solar masses) for the star.")
-    var mass: Double
+        // Pass an array to `subcommands` to set up a nested tree of subcommands.
+        // With language support for type-level introspection, this could be
+        // provided by automatically finding nested `ParsableCommand` types.
+        subcommands: [Generate.self, ListGases.self, ListCatalog.self, SizeCheck.self],
 
-    mutating func run() throws {
-        let flags = FunctionFlags(do_catalog: false, do_moons: true, do_gases: true, use_solar_system: false, reuse_solar_system: false, use_known_planets: false, dont_generate: false, only_habitable: false, only_multi_habitable: false, only_jovian_habitable: false, only_earthlike: false, output_path: "", filename_argument: "", output_format: .text, graphic_format: .gif, system_name: "", mass_argument: mass, seed_argument: seed)
-
-        stargen(flags: flags, action: .generate)
-    }
+        // A default subcommand, when provided, is automatically selected if a
+        // subcommand is not given on the command line.
+        defaultSubcommand: Generate.self
+    )
 }
 
+extension Stargen {
+    
+    struct Generate: ParsableCommand {
+        @Option(help: "The pseudo-random number generator seed.")
+        var seed: UInt64 = 2354
+        
+        @Argument(help: "The mass (in solar masses) for the star.")
+        var mass: Double
+        
+        mutating func run() throws {
+            let flags = FunctionFlags(do_catalog: false, do_moons: true, do_gases: true, use_solar_system: false, reuse_solar_system: false, use_known_planets: false, dont_generate: false, only_habitable: false, only_multi_habitable: false, only_jovian_habitable: false, only_earthlike: false, output_path: "", filename_argument: "", output_format: .text, graphic_format: .gif, system_name: "", mass_argument: mass, seed_argument: seed)
+            
+            stargen(flags: flags)
+        }
+    }
+    
+    struct ListGases: ParsableCommand {
+        mutating func run() throws {
+            var total = 0.0
+            
+            for gas in gases.sorted(by: { gasA, gasB in
+                gasA.abunds > gasB.abunds
+            }) {
+                if gas.weight >= 5.0, gas.max_ipp < 1e9 { // exclude H and He from max_ipp calculation
+                    total += gas.max_ipp
+                }
+                
+                print(" \(gas.num): \(gas.symbol) - \(gas.name) \(gas.num == AN_O ? MIN_O2_IPP : 0.0) mb - \(gas.max_ipp) mb")
+            }
+            print("Total Max ipp: \(total)")
+            print("Max pressure: \(MAX_HABITABLE_PRESSURE) atm")
+        }
+    }
+    
+    struct ListCatalog: ParsableCommand {
+        mutating func run() throws {
+            //        if let catalog = flags.catalog_argument {
+            //            for star in catalog.stars {
+            //                print("\(star.name) M: \(star.mass), L: \(star.luminosity)")
+            //            }
+            //        }
+        }
+    }
+    
+    struct SizeCheck: ParsableCommand {
+        mutating func run() throws {
+            let temp = est_temp(ecosphere_radius: 1.0, orb_radius: 1.0, albedo: EARTH_ALBEDO)
+            print("Size of a double: \(MemoryLayout<Double>.size)")
+            print("Earth Est Temp: \(temp) K, \(temp - FREEZING_POINT_OF_WATER) C, Earth rel: \(temp - EARTH_AVERAGE_KELVIN) C ")
+            
+        }
+    }
+    
+}
 /// *
 // *    StarGen Main Routine
 // *
