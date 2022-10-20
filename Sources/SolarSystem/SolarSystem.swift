@@ -1,117 +1,94 @@
 import Foundation
 
-public struct SolarSystem {}
+public struct SolarSystem {
+    var sun: Sun
+    var planets: [Planet]
+    var seed: UInt64
+    
+    func text_describe_system() {
+        var planet: Planet?
+        var counter = 1
+
+        print("SolarSystem Generation seed: \(seed)")
+        print("                          SYSTEM  CHARACTERISTICS")
+        print("Stellar mass: \(sun.mass.formatted(FPStyle)) solar masses")
+        print("Stellar luminosity: \(sun.luminosity.formatted(FPStyle))")
+        print("Age: \((sun.age / 1.0e9).formatted(FPStyle)) billion years (\(((sun.life - sun.age) / 1.0e9).formatted(FPStyle)) billion left on main sequence)")
+        print("Habitable ecosphere radius: \(sun.r_ecosphere.formatted(FPStyle)) AU")
+        print()
+        print("Planets present at:")
+        for Aplanet in planets {
+            let textSymbol: String
+            if Aplanet.gas_giant {
+                textSymbol = "O"
+            } else if Aplanet.greenhouse_effect, Aplanet.surf_pressure > 0.0 {
+                textSymbol = "+"
+            } else if Aplanet.hydrosphere > 0.05, Aplanet.hydrosphere < 0.95 {
+                textSymbol = "*"
+            } else if (Aplanet.mass * SUN_MASS_IN_EARTH_MASSES) > 0.1 {
+                textSymbol = "o"
+            } else {
+                textSymbol = "."
+            }
+            print("\(counter)\t\(textSymbol)\t\(Aplanet.a.formatted(AUFormat)) AU (\(Aplanet.e.formatted(eFormat))) \(Aplanet.orbital_range())\t\((Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(massFormat)) EM\n")
+            counter += 1
+            planet = planet?.next_planet
+        }
+
+        print()
+
+        for Aplanet in planets {
+            print("Planet \(Aplanet.id) \(Aplanet.gas_giant ? "*gas giant*" : "")")
+
+            if Int(Aplanet.day) == Int(Aplanet.orb_period * 24.0) {
+                print("Planet is tidally locked with one face to star.")
+            }
+            if Aplanet.resonant_period {
+                print("Planet's rotation is in a resonant spin lock with the star")
+            }
+            print("   Distance from primary star:\t\(Aplanet.a.formatted(FPStyle))\tAU")
+            print("   Mass:\t\t\t\((Aplanet.mass * SUN_MASS_IN_EARTH_MASSES).formatted(FPStyle))\tEarth masses")
+            if !(Aplanet.gas_giant) {
+                print("   Surface gravity:\t\t\(Aplanet.surf_grav.formatted(FPStyle))\tEarth Gs")
+                print("   Surface pressure:\t\t\((Aplanet.surf_pressure / 1000.0).formatted(FPStyle))\tEarth atmospheres")
+                if Aplanet.greenhouse_effect, Aplanet.surf_pressure > 0.0 {
+                    print("\tGREENHOUSE EFFECT")
+                }
+                print("   Surface temperature:\t\t\((Aplanet.surf_temp - FREEZING_POINT_OF_WATER).formatted(FPStyle))\tdegrees Celcius\n")
+            }
+            print("   Equatorial radius:\t\t\(Aplanet.radius.formatted(FPStyle))\tKm")
+            print("   Density:\t\t\t\(Aplanet.density.formatted(FPStyle))\tgrams/cc")
+            print("   Eccentricity of orbit:\t\(Aplanet.e.formatted(FPStyle))")
+            print("   Escape Velocity:\t\t\((Aplanet.esc_velocity / CM_PER_KM).formatted(FPStyle))\tKm/sec")
+            print("   Molecular weight retained:\t\(Aplanet.molec_weight.formatted(FPStyle)) and above")
+            print("   Surface acceleration:\t\(Aplanet.surf_accel.formatted(FPStyle))\tcm/sec2")
+            print("   Axial tilt:\t\t\t\(Aplanet.axial_tilt.formatted(FPStyle))\tdegrees")
+            print("   Planetary albedo:\t\t\(Aplanet.albedo.formatted(FPStyle))")
+            print("   Length of year:\t\t\(Aplanet.orb_period.formatted(FPStyle))\tdays")
+            print("   Length of day:\t\t\(Aplanet.day.formatted(FPStyle))\thours")
+            if !(Aplanet.gas_giant) {
+                print("   Boiling point of water:\t\((Aplanet.boil_point - FREEZING_POINT_OF_WATER).formatted(FPStyle))\tdegrees Celcius")
+                print("   Hydrosphere percentage:\t\((Aplanet.hydrosphere * 100.0).formatted(FPStyle))")
+                print("   Cloud cover percentage:\t\((Aplanet.cloud_cover * 100).formatted(FPStyle))")
+                print("   Ice cover percentage:\t\((Aplanet.ice_cover * 100).formatted(FPStyle))")
+            }
+            print()
+
+//            if do_gases,
+//               Aplanet.planet_type != .gasgiant,
+//               Aplanet.planet_type != .subgasgiant,
+//               Aplanet.planet_type != .subsubgasgiant
+//            {
+//                // gases?
+//            }
+        }
+    }
+}
 
 let FPStyle: FloatingPointFormatStyle<Double> = .number.precision(.significantDigits(1 ... 4))
 
-// Values of flags_arg:
-// #define    fUseSolarsystem            0x0001
-// #define    fReuseSolarsystem        0x0002
-// #define    fUseKnownPlanets        0x0004
-// #define fNoGenerate                0x0008
-//
-// #define    fDoGases                0x0010
-// #define    fDoMoons                0x0020
-//
-// #define fOnlyHabitable            0x0100
-// #define fOnlyMultiHabitable        0x0200
-// #define fOnlyJovianHabitable    0x0400
-// #define fOnlyEarthlike            0x0800
-//
-//                                        // Values of out_format
-// #define    ffHTML                'HTML'
-// #define    ffTEXT                'TEXT'
-// #define    ffCELESTIA            '.SSC'
-// #define ffCSV                '.CSV'
-// #define ffCSVdl                '+CSV'
-// #define ffSVG                '.SVG'
-//
-//                                        // Values of graphic_format
-// #define    gfGIF                '.GIF'
-// #define gfSVG                '.SVG'
-//
-//                                        // The two predefined star catalogs.
-// extern catalog    solstation;
-// extern catalog    dole;
-// extern catalog  jimb;
-//                                        // You can roll your own (see main.c)
-//
-// extern planets mercury;                    // For building private catalogs
-//
-//
-// extern int          flag_verbose;        // Likely to move into stargen() args.
-//
-//                                        // Various statistics that are kept:
-// extern int             total_earthlike;
-// extern int             total_habitable;
-//
-// extern long double    min_breathable_terrestrial_g;
-// extern long double    min_breathable_g;
-// extern long double    max_breathable_terrestrial_g;
-// extern long double    max_breathable_g;
-// extern long double    min_breathable_terrestrial_l;
-// extern long double    min_breathable_l;
-// extern long double    max_breathable_terrestrial_l;
-// extern long double    max_breathable_l;
-// extern long double    min_breathable_temp;
-// extern long double    max_breathable_temp;
-// extern long double    min_breathable_p;
-// extern long double    max_breathable_p;
-
-/*  These are the global variables used during accretion:  */
-// planet_pointer    innermost_planet;
-// long double        dust_density_coeff = DUST_DENSITY_COEFF;
-//
-//
-// int flag_verbose = 0;
-// 0x0001            Earthlike count
-// 0x0002            Trace Min/max
-// 0x0004            List habitable
-// 0x0008            List Earth-like (and Sphinx-line)
-
-// 0x0010            List Gases
-// 0x0020            Trace temp iterations
-// 0x0040            Gas lifetimes
-// 0x0080            List loss of accreted gas mass
-
-// 0x0100            Injecting, collision
-// 0x0200            Checking..., Failed...
-// 0x0400            List binary info
-// 0x0800            List Gas Dwarfs etc.
-
-// 0x1000            Moons
-// 0x2000            Oxygen poisoned
-// 0x4000            Trace gas %ages (whoops)
-// 0x8000            Jovians in habitable zone
-
-// 0x10000            List type diversity
-// 0x20000            Trace Surface temp interations
-// 0x40000            Lunar orbits
-
-// long flag_seed         = 0;
-//
-// int earthlike         = 0;
-// int total_earthlike     = 0;
-// int habitable         = 0;
-// int habitable_jovians= 0;
-// int total_habitable     = 0;
-//
-// long double    min_breathable_terrestrial_g = 1000.0;
-// long double    min_breathable_g             = 1000.0;
-// long double    max_breathable_terrestrial_g = 0.0;
-// long double    max_breathable_g             = 0.0;
-// long double    min_breathable_temp             = 1000.0;
-// long double    max_breathable_temp             = 0.0;
-// long double    min_breathable_p             = 100000.0;
-// long double    max_breathable_p             = 0.0;
-// long double    min_breathable_terrestrial_l = 1000.0;
-// long double    min_breathable_l             = 1000.0;
-// long double    max_breathable_terrestrial_l = 0.0;
-// long double    max_breathable_l             = 0.0;
-// long double max_moon_mass                 = 0.0;
-
 // called from stargen()
-func generate_stellar_system(sun: inout Sun,
+func generate_stellar_system(sun: Sun,
                              use_seed_system: Bool,
                              seed_system: Planet?,
                              sys_no: Int,
@@ -120,8 +97,8 @@ func generate_stellar_system(sun: inout Sun,
                              dust_density_coeff _: Double,
                              do_gases: Bool,
                              do_moons: Bool,
-                             prng: inout RNGWrapper<Xoshiro>,
-                             counts: inout InterestingCounts)
+                             prng: RNGWrapper<Xoshiro>,
+                             counts: inout InterestingCounts) -> SolarSystem
 {
     let outer_dust_limit = AccretionDisk.stellar_dust_limit(stellar_mass: sun.mass)
 
@@ -158,8 +135,7 @@ func generate_stellar_system(sun: inout Sun,
     // At this point, we have the star for the system defined in sun,
     // the linked-list of planets in innermost_planet,
     // and the counts of planet types, number of breathable atmospheres, habitable, etc in counts.
-
-    text_describe_system(sun: sun, planets: planets, do_gases: do_gases, seed: 0)
+    return SolarSystem(sun: sun, planets: planets, seed: prng.seed)
 }
 
 func calculate_gases(sun: Sun, planet: Planet, planet_id: String) {
@@ -787,15 +763,6 @@ public struct FunctionFlags {
     }
 }
 
-public enum Actions {
-    case generate //    - Generate random system(s)
-    case listGases //    - List the gas table
-    case listCatalog //    - List the stars in a catalog
-    // case listCatalogAsHTML //  - For creating a <FORM>
-    case sizeCheck //  - List sizes of various types
-    case listVerbosity //  - List values of the -v option
-}
-
 struct InterestingCounts {
     var earthlike = 0
     var habitable = 0
@@ -805,16 +772,13 @@ struct InterestingCounts {
 
 //  main entrance point to invoking generation or exploration
 public func stargen(flags: FunctionFlags) {
-    var sun = Sun(luminosity: 0, mass: 0, life: 0, age: 0, r_ecosphere: 0, name: "")
+    let sun = Sun(luminosity: 0, mass: 0, life: 0, age: 0, r_ecosphere: 0, name: "")
     let min_mass = 0.4
     let inc_mass = 0.05
     let max_mass = 2.35
     var system_count = 1
 
-//    let thumbnail_file = "Thumbnails"
-//    let file_name = "StarGen"
-//    let csv_file_name = "StarGen.csv"
-    var prng = RNGWrapper(Xoshiro(seed: flags.seed_argument))
+    let prng = RNGWrapper(Xoshiro(seed: flags.seed_argument))
 
         sun.mass = flags.mass_argument
         system_count = flags.count_argument
@@ -905,7 +869,7 @@ public func stargen(flags: FunctionFlags) {
                 use_seed_system = true
             }
 
-            generate_stellar_system(sun: &sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, dust_density_coeff: dust_density_coeff, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: &prng, counts: &counts)
+            let solarsystem = generate_stellar_system(sun: sun, use_seed_system: use_seed_system, seed_system: seed_planets, sys_no: iteration, system_name: system_name, outer_planet_limit: outer_limit, dust_density_coeff: dust_density_coeff, do_gases: flags.do_gases, do_moons: flags.do_moons, prng: prng, counts: &counts)
+            solarsystem.text_describe_system()
         }
-    
 }
